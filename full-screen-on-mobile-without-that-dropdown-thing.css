@@ -1,0 +1,10 @@
+/* This is to get a full screen on android chrome */
+main {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 1px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
