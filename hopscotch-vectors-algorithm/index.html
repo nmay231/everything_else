@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <style>
+        #canvas {
+            background-color: rgb(201, 201, 201);
+        }
+
+        body {
+            margin: 0;
+        }
+
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="entry1"></div>
+    <div id="entry2"></div>
+    <div id="entry3"></div>
+    <div id="entry4"></div>
+    <div id="entry5"></div>
+    <div id="entry6"></div>
+    <script>
+        const width = 500;
+        const height = 400;
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ten = 10;
+        const deltas = [
+            // [0, 1 * ten],
+            // [0, -1 * ten],
+            // [1 * ten, 0],
+            // [-1 * ten, 0],
+
+            // [-1 * ten, 1 * ten],
+            // [-1 * ten, -1 * ten],
+            // [1 * ten, -1 * ten],
+            // [1 * ten, 1 * ten],
+
+            // [2 * ten, 1 * ten],
+            // [2 * ten, -1 * ten],
+            // [-2 * ten, 1 * ten],
+            // [-2 * ten, -1 * ten],
+            // [1 * ten, 2 * ten],
+            // [1 * ten, -2 * ten],
+            // [-1 * ten, 2 * ten],
+            // [-1 * ten, -2 * ten],
+            [5 * ten, 0],
+            [-1 * ten, 0],
+        ];
+        // Try cycling deltas next...
+        // One step forward, two steps back
+
+        const euclid = (x1, y1, x2, y2) => ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5;
+        const chebyshev = (x1, y1, x2, y2) => Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
+        // const closeEnough = (x1, y1, x2, y2) => euclid(x1, y1, x2, y2) <= ten / 2;
+        const closeEnough = (x1, y1, x2, y2) => Math.abs(x1 - x2) <= ten / 2 && Math.abs(y1 - y2) <= ten / 2;
+
+        const floor10 = (n) => parseInt(n / 10) * 10;
+        const atan = (vec) => (vec[0] < 0 ? -1 : 1) * Math.atan(vec[1] / vec[0]);
+        let curX, curY;
+
+        const reset = () => {
+            ctx.clearRect(0, 0, width, height);
+            curX = floor10(200) + ten / 2;
+            curY = floor10(200) + ten / 2;
+
+            ctx.beginPath();
+            ctx.fillRect(floor10(curX), floor10(curY), ten, ten);
+
+            ctx.beginPath();
+            for (let i = 0; i < width + ten; i += ten) {
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, height);
+            }
+            for (let i = 0; i < height + ten; i += ten) {
+                ctx.moveTo(0, i);
+                ctx.lineTo(width, i);
+            }
+            ctx.stroke();
+
+        }
+
+        reset();
+
+        onpointermove2 = (event) => {
+            const curX = 100;
+            const curY = 100;
+            const targetX = floor10(300) + ten / 2;
+            const targetY = floor10(300) + ten / 2;
+            const x = event.clientX;
+            const y = event.clientY;
+
+            // const m1 = (targetY - curY) / (targetX - curX);
+            // const b1 = curY - m1 * curX;
+            // const m2 = -(m1 ** -1);
+            // const b2 = y - m2 * x
+            // const vec = [
+            //     (b2 - b1) / (m1 - m2) - x,
+            //     (m1 * b2 - m2 * b1) / (m1 - m2) - y
+            // ];
+            const bx = targetX - curX;
+            const by = targetY - curY;
+            const ax = x - curX;
+            const ay = y - curY;
+            // const coefficient = (curX * targetX + curY * targetY) / (targetX ** 2 + targetY ** 2)
+            const coefficient = (ax * bx + ay * by) / (bx ** 2 + by ** 2);
+            const vec = [
+                coefficient * bx + curX,
+                coefficient * by + curY,
+            ];
+            // const distanceToLine = euclid(x, y, vec[0], vec[1]);
+            // return euclid(x, y, targetX, targetY) * distanceToLine;
+            ctx.clearRect(0, 0, width, height);
+            ctx.beginPath();
+            ctx.strokeStyle = "blue";
+            ctx.moveTo(curX, curY);
+            ctx.lineTo(targetX, targetY);
+            ctx.moveTo(curX, curY);
+            ctx.lineTo(x, y);
+            ctx.moveTo(x, y);
+            ctx.lineTo(targetX, targetY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.strokeStyle = "black";
+            ctx.moveTo(x, y);
+            ctx.lineTo(...vec);
+            ctx.stroke();
+        };
+
+        let trues = 0;
+        let iters = 0;
+        canvas.onpointermove = (event) => {
+            const targetX = floor10(event.clientX) + ten / 2;
+            const targetY = floor10(event.clientY) + ten / 2;
+            const VX = curX - targetX;
+            const VY = curY - targetY;
+            const singleDeltas = deltas.filter((delta) => Math.abs(atan(delta) - atan([VX, VY])) <= Math.PI);
+            // const singleDeltas = deltas;
+            if (!singleDeltas.length) {
+                return;
+            }
+            const close = singleDeltas.filter(([dx, dy]) => closeEnough(dx, dy, VX, VY));
+            if (close.length) {
+                ctx.beginPath();
+                ctx.fillRect(floor10(targetX), floor10(targetY), ten, ten);
+                curX = targetX;
+                curY = targetY;
+                return;
+            }
+
+            const toMax = (x, y) => {
+                const bx = targetX - curX;
+                const by = targetY - curY;
+                const ax = x - curX;
+                const ay = y - curY;
+                const coefficient = (ax * bx + ay * by) / (bx ** 2 + by ** 2);
+                const vec = [
+                    coefficient * bx,
+                    coefficient * by,
+                ];
+                const distanceToLine = euclid(ax, ay, vec[0], vec[1]);
+                return euclid(x, y, targetX, targetY) + distanceToLine;
+            };
+            const results = [];
+
+            let newX = curX, newY = curY;
+
+            let max = 1000;
+            while (chebyshev(curX, curY, newX, newY) < chebyshev(curX, curY, targetX, targetY)) {
+                results.push([newX, newY]);
+
+                const bestDelta = singleDeltas.reduce(([dx1, dy1], [dx2, dy2]) => toMax(newX + dx1, newY + dy1) < toMax(newX + dx2, newY + dy2) ? [dx1, dy1] : [dx2, dy2]);
+
+                newX += bestDelta[0];
+                newY += bestDelta[1];
+
+                max -= 1;
+                if (max <= 0) {
+                    console.error("You suck!", curX, curY);
+                    // console.
+                    return;
+                }
+            }
+            results.push([newX, newY]);
+            // console.log(results.slice(-1).map(([newX, newY]) => closeEnough(newX, newY, targetX, targetY)));
+            // console.log(closeEnough(...results.slice(-1)[0], targetX, targetY))
+
+            document.getElementById("entry1").innerText = [curX, curY, targetX, targetY].toString();
+            // trues += closeEnough(...results.slice(-1)[0], targetX, targetY);
+            trues += results.reduce((prev, next) => prev + closeEnough(...next, targetX, targetY), 0);
+            document.getElementById("entry2").innerText = trues;
+            document.getElementById("entry3").innerText = `${results.length}`;
+            document.getElementById("entry4").innerText = [results.slice(-1)[0][0] - targetX, results.slice(-1)[0][1] - targetY].toString();
+
+            if (results.length > 1 && closeEnough(...results.slice(-1)[0], targetX, targetY)) {
+                ctx.beginPath();
+                ctx.strokeStyle = "blue";
+                ctx.moveTo(curX, curY);
+                ctx.lineTo(targetX, targetY);
+                ctx.stroke();
+                ctx.strokeStyle = "black";
+                ctx.beginPath();
+                for (let [x, y] of results.slice(1)) {
+                    ctx.rect(floor10(x), floor10(y), ten, ten);
+                }
+                ctx.fill();
+                [curX, curY] = results[results.length - 1];
+            }
+        }
+
+        canvas.onclick = (event) => {
+            if (event.ctrlKey) {
+                reset();
+            }
+        }
+    </script>
+</body>
+
+</html>
