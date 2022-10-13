@@ -1,8 +1,6 @@
 from collections import defaultdict
 
-Point = tuple[int, int]
-Edge = tuple[Point, Point]
-# Graph = dict[Point, Point]
+from utils import Edge, Point
 
 
 def is_solved(grid_size: int, endpoints: list[Edge], edges: list[Edge]) -> bool:
@@ -33,6 +31,7 @@ def is_solved(grid_size: int, endpoints: list[Edge], edges: list[Edge]) -> bool:
                 return False
 
         del graph[start]
+
     # The graph must be empty to be a valid solution
     assert not graph, "Logical error, the graph must be empty at the end of the solution"
     return True
@@ -90,7 +89,6 @@ for i in range(1, 7):
     assert len(endpoints_[i]) == 2, "More or less than two endpoints per number found"
     endpoints.append(tuple(endpoints_[i]))
 
-# deltas = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 edges = list[Edge]()
 for y, row in enumerate(solution):
     for x, val in enumerate(row):
@@ -99,10 +97,5 @@ for y, row in enumerate(solution):
 
         if x + 1 < len(solution) and val == solution[y][x + 1]:
             edges.append(((x, y), (x + 1, y)))
-
-# visited = set[Point]()
-# for i, (start, end) in enumerate(endpoints):
-#     while start != end:
-
 
 print(is_solved(7 * 7, endpoints, edges))
