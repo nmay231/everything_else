@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing which pointer remains the primary when lifting and lowering the other pointers</title>
+</head>
+
+<body>
+    <div id="box" style="width: 300px; height: 300px; background-color: blue; touch-action: none;"></div>
+    <p id="1"></p>
+    <p id="2"></p>
+    <p id="3"></p>
+    <p id="4"></p>
+    <script defer>
+        function print(number, content) {
+            document.getElementById("" + number).textContent = content;
+        }
+
+        // This answers the question: What happens if you tap one finger, a second finger and then lift and tap the first finger again?
+        // The answer is: The first time the finger is primary, the second time it is not (in fact the pointerId has changed)
+        const box = document.getElementById("box")
+        let ids = []
+        const updateIds = () => {
+            print(1, "ids: " + (ids.join(", ") || "none"))
+        }
+        updateIds();
+
+        box.addEventListener("pointerdown", (event) => {
+            ids.push(`${event.pointerId}: ${event.isPrimary ? "primary" : "not primary"}`)
+            updateIds()
+        })
+
+        box.addEventListener("pointerup", (event) => {
+            ids = ids.filter((old) => !old.startsWith(event.pointerId + ""))
+            updateIds()
+        })
+    </script>
+</body>
+
+</html>
