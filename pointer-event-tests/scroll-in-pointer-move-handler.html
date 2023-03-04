@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Are you allowed to scroll element in pointermove events?</title>
+    <!-- Answer: Yes you are able to. So why is my other code not working?!?!?!?! -->
+    <style>
+        body {
+            --width: 800px;
+            --height: 600px;
+        }
+
+        #canvas {
+            background: linear-gradient(45deg, red 0%, green 12.5%, blue 25%, red 37.5%, green 50%, blue 62.5%, red 75%, green 87.5%, blue 100%);
+            border: solid pink 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scrollable" style="width: var(--width); height: var(--height); background-color: black;overflow: scroll;">
+        <div id="canvas"  style="width: calc(2*var(--width)); height: calc(2*var(--height));"></div>
+    </div>
+
+    <script defer>
+        const scrollable = document.getElementById("scrollable");
+        const scrollSomewhere = () => {
+            scrollable.scrollTo({left: Math.random() * 600, top: Math.random() * 600})
+        }
+        scrollSomewhere()
+        scrollable.addEventListener("pointermove", () => {
+            scrollSomewhere()
+        })
+    </script>
+</body>
+</html>
