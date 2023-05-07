@@ -4,3 +4,6 @@ __pycache__/
 
 # Rust
 target/
+
+# Misc.
+.vscode/
