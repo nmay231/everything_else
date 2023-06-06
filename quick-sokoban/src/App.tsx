@@ -13,15 +13,24 @@ const gridNameMap = {
     g: "goal",
 } as const;
 
+function backgroundSlotOnly(slot: GridSlot): BackgroundSlot {
+    if (slot === "player" || slot === "block") {
+        return "empty";
+    }
+    return slot;
+}
+
 function imageFor(gs: GridSlot) {
     return `/images/sokoban-${gs}.png`;
 }
 
-type GridSlot = (typeof gridNameMap)[keyof typeof gridNameMap];
+type BackgroundSlot = "empty" | "wall" | "goal";
+type ForegroundSlot = "block" | "player";
+type GridSlot = BackgroundSlot | ForegroundSlot;
 type Coord = [number, number];
 
 function indexToCoord(index: number, width: number): Coord {
-    return [Math.floor(index / width), index % width];
+    return [index % width, Math.floor(index / width)];
 }
 
 function coordToIndex(coord: Coord, width: number) {
@@ -60,10 +69,10 @@ const directionVector = new Map<Direction | undefined, Coord>([
 class GameState {
     width: number;
     height: number;
-    grid: GridSlot[][];
+    grid: BackgroundSlot[][];
     player: Coord;
-    blocks: Coord[];
-    goals: Coord[];
+    blocks: Set<number>;
+    goals: Set<number>;
     backgroundImages: string[];
 
     constructor(game: string) {
@@ -71,7 +80,7 @@ class GameState {
             throw Error("game string empty");
         }
 
-        this.grid = game
+        const grid = game
             .trim()
             .split("\n")
             .map((row) =>
@@ -82,6 +91,9 @@ class GameState {
                     .map((x) => gridNameMap[x as keyof typeof gridNameMap]),
             );
 
+        this.grid = grid.map((row) => row.map(backgroundSlotOnly));
+        this.backgroundImages = this.grid.flat().map(imageFor);
+
         const widths = new Set(this.grid.map((row) => row.length));
         if (widths.size != 1) {
             throw Error("row lengths must be the same");
@@ -90,41 +102,34 @@ class GameState {
         // Why the heck do sets not come with a pop method...
         this.width = widths.values().next().value as number;
         this.height = this.grid.length;
-
-        const flatGrid = this.grid.flat();
         let player = null as null | Coord;
-        this.goals = [];
-        this.blocks = [];
+        this.goals = new Set();
+        this.blocks = new Set();
 
-        for (const [i, value] of flatGrid.entries()) {
+        for (const [i, value] of grid.flat().entries()) {
             if (value === "goal") {
-                this.goals.push(this.indexToCoord(i));
+                this.goals.add(i);
+            } else if (value === "block") {
+                this.blocks.add(i);
             } else if (value === "player") {
                 if (player) {
                     throw Error("multiple players found, not allowed since you have no friends D:");
                 }
                 player = this.indexToCoord(i);
-            } else if (value === "block") {
-                this.blocks.push(this.indexToCoord(i));
             }
         }
 
         if (!player) {
             throw Error("Must provide player");
-        } else {
-            this.player = player;
         }
-        if (!this.goals.length) {
+        this.player = player;
+
+        if (!this.goals.size) {
             throw Error("Must have at least one goal");
         }
-        if (this.blocks.length < this.goals.length) {
+        if (this.blocks.size < this.goals.size) {
             throw Error("Must have more blocks than goals");
         }
-
-        const background_filter = new Set<GridSlot>(["empty", "goal", "wall"]);
-        this.backgroundImages = this.grid
-            .flat()
-            .map((slot) => imageFor(background_filter.has(slot) ? slot : "empty"));
     }
 
     coordToIndex(coord: Coord) {
@@ -139,10 +144,16 @@ class GameState {
         return this.grid[coord[1]]?.[coord[0]];
     }
 
+    setGrid(coord: Coord, slot: BackgroundSlot) {
+        if (this.grid[coord[1]]?.[coord[0]]) {
+            this.grid[coord[1]][coord[0]] = slot;
+        }
+    }
+
     topImages(): Map<number, string> {
         const blockImage = imageFor("block");
         return new Map([
-            ...this.blocks.map((block) => [this.coordToIndex(block), blockImage] as const),
+            ...[...this.blocks].map((block) => [block, blockImage] as const),
             [this.coordToIndex(this.player), imageFor("player")],
         ]);
     }
@@ -153,16 +164,36 @@ class GameState {
             return;
         }
 
+        // Prepare for branching hell!
+        // I could have defined a OOP approach (one of the few uses of OOP) where objects defined the response to certain actions in a systematic way, but I don't have enough time...
+
         const diff = directionVector.get(direction)!;
-        this.player = addCoord(this.player, diff);
+        const oneOver = addCoord(this.player, diff);
+
+        if (this.gridAt(oneOver) === "wall") {
+            return;
+        }
+        const twoOver = addCoord(oneOver, diff);
+        const oneOverIndex = this.coordToIndex(oneOver);
+        if (this.blocks.has(oneOverIndex)) {
+            const twoOverIndex = this.coordToIndex(twoOver);
+            if (this.gridAt(twoOver) === "wall" || this.blocks.has(twoOverIndex)) {
+                return;
+            }
+            this.blocks.delete(oneOverIndex);
+            this.blocks.add(twoOverIndex);
+        }
+        this.player = oneOver;
     }
 }
 
 const puzzle = `
-WWWW
-WPGW
-WEBW
-WWWW
+WWWWWWWW
+WEPEEBEW
+WEEEEEEW
+WEEEEBEW
+WEEEEEGW
+WWWWWWWW
 `;
 
 const _grid = proxy(new GameState(puzzle));
@@ -175,7 +206,7 @@ function App() {
         return () => {
             document.body.removeEventListener("keydown", listener);
         };
-    }, []);
+    }, [grid]);
 
     const background = grid.backgroundImages;
     const topImages = grid.topImages();
