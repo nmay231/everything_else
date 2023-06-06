@@ -47,6 +47,16 @@ enum Direction {
     DOWN = "DOWN",
     LEFT = "LEFT",
 }
+const _oppositeDirection = new Map<Direction, Direction>([
+    [Direction.UP, Direction.DOWN],
+    [Direction.DOWN, Direction.UP],
+    [Direction.LEFT, Direction.RIGHT],
+    [Direction.RIGHT, Direction.LEFT],
+]);
+function oppositeDirection(dir: Direction) {
+    return _oppositeDirection.get(dir)!;
+}
+
 const keyboardMap = new Map<string, Direction>([
     ["arrowup", Direction.UP],
     ["arrowright", Direction.RIGHT],
@@ -59,12 +69,30 @@ const keyboardMap = new Map<string, Direction>([
 ]);
 
 // Direction | undefined so you can chain .get()
-const directionVector = new Map<Direction | undefined, Coord>([
+const _directionVector = new Map<Direction, Coord>([
     [Direction.UP, [0, -1]],
     [Direction.RIGHT, [1, 0]],
     [Direction.DOWN, [0, 1]],
     [Direction.LEFT, [-1, 0]],
 ]);
+
+function dirToCoord(dir: Direction) {
+    return _directionVector.get(dir)!;
+}
+
+// function coordToDir(coord: Coord) {
+//     for (const [dir, c] of _directionVector.entries()) {
+//         if (coord[0] === c[0] && coord[1] === c[1]) {
+//             return dir;
+//         }
+//     }
+//     throw Error(`vector is not a unit vector: ${coord}`);
+// }
+
+type History = {
+    dir: Direction;
+    blockPushed: boolean;
+};
 
 class GameState {
     width: number;
@@ -74,6 +102,7 @@ class GameState {
     blocks: Set<number>;
     goals: Set<number>;
     backgroundImages: string[];
+    history = { forward: [] as History[], backward: [] as History[] };
 
     constructor(game: string) {
         if (!game.trim()) {
@@ -159,6 +188,32 @@ class GameState {
     }
 
     onkeydown(event: KeyboardEvent) {
+        const key = event.key.toLowerCase();
+        if (key === "z") {
+            const action = this.history.backward.pop();
+            if (!action) return;
+            if (action.blockPushed) {
+                const blockIndex = this.coordToIndex(addCoord(this.player, dirToCoord(action.dir)));
+                this.blocks.delete(blockIndex);
+                this.blocks.add(this.coordToIndex(this.player));
+            }
+            this.player = addCoord(this.player, dirToCoord(oppositeDirection(action.dir)));
+            this.history.forward.push(action);
+        }
+
+        if (key === "y") {
+            const action = this.history.forward.pop();
+            if (!action) return;
+            if (action.blockPushed) {
+                const vec = dirToCoord(action.dir);
+                const blockCoord = addCoord(this.player, vec);
+                this.blocks.delete(this.coordToIndex(blockCoord));
+                this.blocks.add(this.coordToIndex(addCoord(blockCoord, vec)));
+            }
+            this.player = addCoord(this.player, dirToCoord(action.dir));
+            this.history.backward.push(action);
+        }
+
         const direction = keyboardMap.get(event.code.toLowerCase());
         if (!direction) {
             return;
@@ -167,15 +222,17 @@ class GameState {
         // Prepare for branching hell!
         // I could have defined a OOP approach (one of the few uses of OOP) where objects defined the response to certain actions in a systematic way, but I don't have enough time...
 
-        const diff = directionVector.get(direction)!;
+        const diff = dirToCoord(direction);
         const oneOver = addCoord(this.player, diff);
 
         if (this.gridAt(oneOver) === "wall") {
             return;
         }
+        const history: History = { dir: direction, blockPushed: false };
         const twoOver = addCoord(oneOver, diff);
         const oneOverIndex = this.coordToIndex(oneOver);
         if (this.blocks.has(oneOverIndex)) {
+            history.blockPushed = true;
             const twoOverIndex = this.coordToIndex(twoOver);
             if (this.gridAt(twoOver) === "wall" || this.blocks.has(twoOverIndex)) {
                 return;
@@ -184,6 +241,11 @@ class GameState {
             this.blocks.add(twoOverIndex);
         }
         this.player = oneOver;
+
+        this.history.backward.push(history);
+        if (this.history.forward.length) {
+            this.history.forward = [];
+        }
     }
 }
 
