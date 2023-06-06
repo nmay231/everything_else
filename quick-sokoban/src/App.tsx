@@ -11,11 +11,14 @@ const gridNameMap = {
     p: "player",
     w: "wall",
     g: "goal",
+    s: "stacked",
 } as const;
 
-function backgroundSlotOnly(slot: GridSlot): BackgroundSlot {
+function backgroundSlotOnly(slot: GridSlot | "stacked"): BackgroundSlot {
     if (slot === "player" || slot === "block") {
         return "empty";
+    } else if (slot === "stacked") {
+        return "goal";
     }
     return slot;
 }
@@ -140,6 +143,9 @@ class GameState {
             if (value === "goal") {
                 this.goals.add(i);
             } else if (value === "block") {
+                this.blocks.add(i);
+            } else if (value === "stacked") {
+                this.goals.add(i);
                 this.blocks.add(i);
             } else if (value === "player") {
                 if (player) {
@@ -274,16 +280,24 @@ const puzzles = [
 WWWWWW
 WEEPEW
 WBWWWW
-WEWEEE
-WEWEEE
-WGWEEE
-WWWEEE
+WEWwww
+WEWwww
+WGWwww
+WWWwww
 `,
     `
 WWWWWW
 WPEEEW
 WEEBGW
 WEGBEW
+WWWWWW
+`,
+    `
+WWWWWw
+WpEEWW
+WGBSEW
+WEEWEW
+WEEEEW
 WWWWWW
 `,
 ];
