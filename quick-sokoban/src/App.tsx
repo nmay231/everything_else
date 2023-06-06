@@ -337,7 +337,9 @@ const onWin = () => {
             _grid.puzzleProgress += 1;
             document.getElementById("next-level")?.focus();
         } else {
-            alert("you solved all the puzzles!");
+            document.getElementById("win-message")!.style.display = "grid";
+            const jsConfetti = new (window as any).JSConfetti();
+            jsConfetti.addConfetti();
         }
     }
 };
