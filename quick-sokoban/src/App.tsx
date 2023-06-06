@@ -108,7 +108,11 @@ class GameState {
     history = { forward: [] as History[], backward: [] as History[] };
     alreadySolved = false;
 
-    constructor(game: string, public onWin: () => void) {
+    constructor(
+        game: string,
+        public onWin: () => void,
+        public keybinds: Record<string, () => void>,
+    ) {
         if (!game.trim()) {
             throw Error("game string empty");
         }
@@ -196,34 +200,21 @@ class GameState {
 
     onkeydown(event: KeyboardEvent) {
         const key = event.key.toLowerCase();
+
+        if (key in this.keybinds) {
+            this.keybinds[key]();
+            return;
+        }
+
         if (key === "z") {
-            const action = this.history.backward.pop();
-            if (!action) return;
-            if (action.blockPushed) {
-                const blockIndex = this.coordToIndex(addCoord(this.player, dirToCoord(action.dir)));
-                this.blocks.delete(blockIndex);
-                this.blocks.add(this.coordToIndex(this.player));
-            }
-            this.player = addCoord(this.player, dirToCoord(oppositeDirection(action.dir)));
-            this.history.forward.push(action);
+            this.tryUndo();
+            return;
         }
 
         if (key === "y") {
-            const action = this.history.forward.pop();
-            if (!action) return;
-            if (action.blockPushed) {
-                const vec = dirToCoord(action.dir);
-                const blockCoord = addCoord(this.player, vec);
-                this.blocks.delete(this.coordToIndex(blockCoord));
-                this.blocks.add(this.coordToIndex(addCoord(blockCoord, vec)));
-            }
-            this.player = addCoord(this.player, dirToCoord(action.dir));
-            this.history.backward.push(action);
+            this.tryRedo();
+            return;
         }
-
-        // TODO
-        // if (key === "n") {
-        // }
 
         const direction = keyboardMap.get(event.code.toLowerCase());
         if (!direction) {
@@ -271,6 +262,31 @@ class GameState {
             setTimeout(() => this.onWin(), 0);
         }
     }
+
+    tryUndo() {
+        const action = this.history.backward.pop();
+        if (!action) return;
+        if (action.blockPushed) {
+            const blockIndex = this.coordToIndex(addCoord(this.player, dirToCoord(action.dir)));
+            this.blocks.delete(blockIndex);
+            this.blocks.add(this.coordToIndex(this.player));
+        }
+        this.player = addCoord(this.player, dirToCoord(oppositeDirection(action.dir)));
+        this.history.forward.push(action);
+    }
+
+    tryRedo() {
+        const action = this.history.forward.pop();
+        if (!action) return;
+        if (action.blockPushed) {
+            const vec = dirToCoord(action.dir);
+            const blockCoord = addCoord(this.player, vec);
+            this.blocks.delete(this.coordToIndex(blockCoord));
+            this.blocks.add(this.coordToIndex(addCoord(blockCoord, vec)));
+        }
+        this.player = addCoord(this.player, dirToCoord(action.dir));
+        this.history.backward.push(action);
+    }
 }
 
 // Yay for plagiarism!
@@ -283,25 +299,38 @@ WBWWWW
 WEWwww
 WEWwww
 WGWwww
-WWWwww
-`,
+WWWwww`,
     `
 WWWWWW
 WPEEEW
 WEEBGW
 WEGBEW
-WWWWWW
-`,
+WWWWWW`,
     `
 WWWWWw
 WpEEWW
 WGBSEW
 WEEWEW
 WEEEEW
-WWWWWW
-`,
+WWWWWW`,
+    `
+WWWWWWw
+WPEEEWW
+WEBBEEW
+WEWGEGW
+WEEEEEW
+WWWWWWW`,
+    `
+wwWWWWw
+WWWEEWw
+WPEGBWW
+WEEEBEW
+WEWGEEW
+WEEEEEW
+WWWWWWW`,
 ];
 
+// Yay for pseudo-global state?
 const onWin = () => {
     if (_grid.currentLevel === _grid.puzzleProgress) {
         if (_grid.currentLevel < puzzles.length - 1) {
@@ -313,10 +342,25 @@ const onWin = () => {
     }
 };
 
+const otherKeybinds = {
+    n: () => {
+        if (_grid.currentLevel < _grid.puzzleProgress) {
+            _grid.currentLevel += 1;
+            _grid.game = new GameState(puzzles[_grid.currentLevel], onWin, otherKeybinds);
+        }
+    },
+    p: () => {
+        if (_grid.currentLevel > 0) {
+            _grid.currentLevel -= 1;
+            _grid.game = new GameState(puzzles[_grid.currentLevel], onWin, otherKeybinds);
+        }
+    },
+};
+
 const _grid = proxy({
     puzzleProgress: 0,
     currentLevel: 0,
-    game: new GameState(puzzles[0], onWin),
+    game: new GameState(puzzles[0], onWin, otherKeybinds),
 });
 
 function App() {
@@ -395,28 +439,26 @@ function App() {
                     alignItems: "center",
                 }}
             >
-                <button id="undo" onClick={() => 0} disabled>
+                <button
+                    id="undo"
+                    onClick={() => grid.game.tryUndo()}
+                    disabled={grid.game.history.backward.length <= 0}
+                >
                     Undo (z)
                 </button>
-                <button id="redo" onClick={() => 0} disabled>
+                <button
+                    id="redo"
+                    onClick={() => grid.game.tryRedo()}
+                    disabled={grid.game.history.forward.length <= 0}
+                >
                     Redo (y)
                 </button>
-                <button
-                    id="prev-level"
-                    onClick={() => {
-                        grid.currentLevel -= 1;
-                        grid.game = new GameState(puzzles[grid.currentLevel], onWin);
-                    }}
-                    disabled={grid.currentLevel <= 0}
-                >
+                <button id="prev-level" onClick={otherKeybinds.p} disabled={grid.currentLevel <= 0}>
                     Previous level (p)
                 </button>
                 <button
                     id="next-level"
-                    onClick={() => {
-                        grid.currentLevel += 1;
-                        grid.game = new GameState(puzzles[grid.currentLevel], onWin);
-                    }}
+                    onClick={otherKeybinds.n}
                     disabled={grid.currentLevel >= grid.puzzleProgress}
                 >
                     Next level (n)
