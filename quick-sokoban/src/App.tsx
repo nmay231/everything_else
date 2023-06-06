@@ -103,8 +103,9 @@ class GameState {
     goals: Set<number>;
     backgroundImages: string[];
     history = { forward: [] as History[], backward: [] as History[] };
+    alreadySolved = false;
 
-    constructor(game: string) {
+    constructor(game: string, public onWin: () => void) {
         if (!game.trim()) {
             throw Error("game string empty");
         }
@@ -246,6 +247,19 @@ class GameState {
         if (this.history.forward.length) {
             this.history.forward = [];
         }
+
+        for (const goal of this.goals) {
+            if (!this.blocks.has(goal)) {
+                return;
+            }
+        }
+
+        if (!this.alreadySolved) {
+            this.alreadySolved = true;
+            // All goals covered. Player solved it
+            // Allow react to render before calling
+            setTimeout(() => this.onWin(), 0);
+        }
     }
 }
 
@@ -258,22 +272,22 @@ WEEEEEGW
 WWWWWWWW
 `;
 
-const _grid = proxy(new GameState(puzzle));
+const _grid = proxy({ game: new GameState(puzzle, () => window.alert("you won!")) });
 
 function App() {
-    const grid = useProxy(_grid);
+    const game = useProxy(_grid).game;
     useEffect(() => {
-        const listener = grid.onkeydown.bind(grid);
+        const listener = _grid.game.onkeydown.bind(_grid.game);
         document.body.addEventListener("keydown", listener);
         return () => {
             document.body.removeEventListener("keydown", listener);
         };
-    }, [grid]);
+    }, [game]);
 
-    const background = grid.backgroundImages;
-    const topImages = grid.topImages();
-    const width = grid.width;
-    const height = grid.height;
+    const background = game.backgroundImages;
+    const topImages = game.topImages();
+    const width = game.width;
+    const height = game.height;
 
     return (
         <>
