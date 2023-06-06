@@ -215,6 +215,10 @@ class GameState {
             this.history.backward.push(action);
         }
 
+        // TODO
+        // if (key === "n") {
+        // }
+
         const direction = keyboardMap.get(event.code.toLowerCase());
         if (!direction) {
             return;
@@ -263,19 +267,47 @@ class GameState {
     }
 }
 
-const puzzle = `
-WWWWWWWW
-WEPEEBEW
-WEEEEEEW
-WEEEEBEW
-WEEEEEGW
-WWWWWWWW
-`;
+// Yay for plagiarism!
+// https://www.cbc.ca/kids/games/play/sokoban
+const puzzles = [
+    `
+WWWWWW
+WEEPEW
+WBWWWW
+WEWEEE
+WEWEEE
+WGWEEE
+WWWEEE
+`,
+    `
+WWWWWW
+WPEEEW
+WEEBGW
+WEGBEW
+WWWWWW
+`,
+];
 
-const _grid = proxy({ game: new GameState(puzzle, () => window.alert("you won!")) });
+const onWin = () => {
+    if (_grid.currentLevel === _grid.puzzleProgress) {
+        if (_grid.currentLevel < puzzles.length - 1) {
+            _grid.puzzleProgress += 1;
+            document.getElementById("next-level")?.focus();
+        } else {
+            alert("you solved all the puzzles!");
+        }
+    }
+};
+
+const _grid = proxy({
+    puzzleProgress: 0,
+    currentLevel: 0,
+    game: new GameState(puzzles[0], onWin),
+});
 
 function App() {
-    const game = useProxy(_grid).game;
+    const grid = useProxy(_grid);
+    const game = grid.game;
     useEffect(() => {
         const listener = _grid.game.onkeydown.bind(_grid.game);
         document.body.addEventListener("keydown", listener);
@@ -290,7 +322,8 @@ function App() {
     const height = game.height;
 
     return (
-        <>
+        <div>
+            <h1>Level {grid.currentLevel + 1}</h1>
             <div
                 style={{
                     display: "grid",
@@ -336,7 +369,46 @@ function App() {
                     );
                 })}
             </div>
-        </>
+            <div
+                style={{
+                    display: "grid",
+                    width: "16rem",
+                    margin: "auto",
+                    marginTop: "1rem",
+                    gridTemplateColumns: "8rem [col] 8rem [col]",
+                    gridTemplateRows: "2rem [col] 2rem [col]",
+                    justifyItems: "center",
+                    alignItems: "center",
+                }}
+            >
+                <button id="undo" onClick={() => 0} disabled>
+                    Undo (z)
+                </button>
+                <button id="redo" onClick={() => 0} disabled>
+                    Redo (y)
+                </button>
+                <button
+                    id="prev-level"
+                    onClick={() => {
+                        grid.currentLevel -= 1;
+                        grid.game = new GameState(puzzles[grid.currentLevel], onWin);
+                    }}
+                    disabled={grid.currentLevel <= 0}
+                >
+                    Previous level (p)
+                </button>
+                <button
+                    id="next-level"
+                    onClick={() => {
+                        grid.currentLevel += 1;
+                        grid.game = new GameState(puzzles[grid.currentLevel], onWin);
+                    }}
+                    disabled={grid.currentLevel >= grid.puzzleProgress}
+                >
+                    Next level (n)
+                </button>
+            </div>
+        </div>
     );
 }
 
