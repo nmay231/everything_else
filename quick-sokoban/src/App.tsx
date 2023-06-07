@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { proxy } from "valtio";
-import { useProxy } from "valtio/utils";
+import { subscribeKey, useProxy } from "valtio/utils";
 
 const IMAGE_SIZE = 16;
 const IMAGE_SCALE = 4;
@@ -379,10 +379,18 @@ const otherKeybinds = {
     },
 };
 
+const LOCAL_STORAGE_KEY = "progress";
+const data = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "{}");
+
 const _grid = proxy({
-    puzzleProgress: 0,
-    currentLevel: 0,
-    game: new GameState(puzzles[0], onWin, otherKeybinds),
+    puzzleProgress: data.puzzleProgress ?? 0,
+    currentLevel: data.currentLevel ?? 0,
+    game: new GameState(puzzles[data.currentLevel ?? 0], onWin, otherKeybinds),
+});
+
+subscribeKey(_grid, "currentLevel", () => {
+    const { currentLevel, puzzleProgress } = _grid;
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ currentLevel, puzzleProgress }));
 });
 
 function App() {
