@@ -411,9 +411,19 @@ function App() {
 
     return (
         <div>
-            <h1>
-                Level {grid.currentLevel + 1} of {puzzles.length}
-            </h1>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <h1>
+                    Level {grid.currentLevel + 1} of {puzzles.length}
+                </h1>
+                <button
+                    style={{ marginLeft: "1rem", padding: "10px", borderRadius: "15px 5px" }}
+                    onClick={() => {
+                        document.getElementById("help-message")!.style.display = "grid";
+                    }}
+                >
+                    What's this?
+                </button>
+            </div>
             <div
                 style={{
                     display: "grid",

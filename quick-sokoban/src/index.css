@@ -29,12 +29,12 @@ body {
     text-align: center;
 }
 
-#win-message {
-    display: none;
+#win-message,
+#help-message {
     justify-content: center;
     align-items: center;
 
-    background-color: #24242477;
+    background-color: #242424dd;
     text-align: center;
     font-size: larger;
     font-weight: 600;
