@@ -12,6 +12,7 @@ const gridNameMap = {
     w: "wall",
     g: "goal",
     s: "stacked",
+    _: "true-empty",
 } as const;
 
 function backgroundSlotOnly(slot: GridSlot | "stacked"): BackgroundSlot {
@@ -27,7 +28,7 @@ function imageFor(gs: GridSlot) {
     return `/images/sokoban-${gs}.png`;
 }
 
-type BackgroundSlot = "empty" | "wall" | "goal";
+type BackgroundSlot = "empty" | "wall" | "goal" | "true-empty";
 type ForegroundSlot = "block" | "player";
 type GridSlot = BackgroundSlot | ForegroundSlot;
 type Coord = [number, number];
@@ -82,15 +83,6 @@ const _directionVector = new Map<Direction, Coord>([
 function dirToCoord(dir: Direction) {
     return _directionVector.get(dir)!;
 }
-
-// function coordToDir(coord: Coord) {
-//     for (const [dir, c] of _directionVector.entries()) {
-//         if (coord[0] === c[0] && coord[1] === c[1]) {
-//             return dir;
-//         }
-//     }
-//     throw Error(`vector is not a unit vector: ${coord}`);
-// }
 
 type History = {
     dir: Direction;
@@ -164,12 +156,13 @@ class GameState {
         }
         this.player = player;
 
-        if (!this.goals.size) {
-            throw Error("Must have at least one goal");
-        }
-        if (this.blocks.size < this.goals.size) {
-            throw Error("Must have more blocks than goals");
-        }
+        // These are only useful if I add a puzzle editor
+        // if (!this.goals.size) {
+        //     throw Error("Must have at least one goal");
+        // }
+        // if (this.blocks.size < this.goals.size) {
+        //     throw Error("Must have more blocks than goals");
+        // }
     }
 
     coordToIndex(coord: Coord) {
@@ -289,45 +282,72 @@ class GameState {
     }
 }
 
-// Yay for plagiarism!
-// https://www.cbc.ca/kids/games/play/sokoban
 const puzzles = [
     `
-WWWWWW
-WEEPEW
-WBWWWW
-WEWwww
-WEWwww
-WGWwww
-WWWwww`,
+    WWWWWWW
+    WEEPEEW
+    WEEEEEW
+    WEEBEEW
+    WEEEEEW
+    WEEGEEW
+    WWWWWWW`,
     `
-WWWWWW
-WPEEEW
-WEEBGW
-WEGBEW
-WWWWWW`,
+    WWWWWWW
+    WEEPEEW
+    WEEBEEW
+    WEEBEEW
+    WEEGEEW
+    WEEGEEW
+    WWWWWWW`,
     `
-WWWWWw
-WpEEWW
-WGBSEW
-WEEWEW
-WEEEEW
-WWWWWW`,
+    WWWWWWW
+    WEEPEEW
+    WEEEBGW
+    WGEEBEW
+    WEEEBGW
+    WEEEEEW
+    WWWWWWW`,
     `
-WWWWWWw
-WPEEEWW
-WEBBEEW
-WEWGEGW
-WEEEEEW
-WWWWWWW`,
+    ___WWWW_
+    WWWWEEW_
+    WPBEEEW_
+    WWWWWEWW
+    WEEEWEEW
+    WEEEEEGW
+    WWWWWWWW`,
     `
-wwWWWWw
-WWWEEWw
-WPEGBWW
-WEEEBEW
-WEWGEEW
-WEEEEEW
-WWWWWWW`,
+    WWWWWWW
+    WEEGEEW
+    WEEBEEW
+    WGBWBGW
+    WEEPEEW
+    WWWWWWW`,
+    `
+    WWWWWWW
+    WESEEEW
+    WPWBEEW
+    WEWEEWW
+    WEWEWW_
+    WGBEW__
+    WWWWW__`,
+    `
+    WWWWWW_
+    WEEGEWW
+    WEEWEEW
+    WEEBPGW
+    WWEWBEW
+    _WEEEWW
+    _WWWWW_`,
+    `
+    _______WWWW_
+    ______WWPEW_
+    WWWWWWWEBEW_
+    WEEEEEWESEW_
+    WEEEEEEESEW_
+    WWWWWWEWSWWW
+    _____WEESEEW
+    _____WWWGEEW
+    _______WWWWW`,
 ];
 
 // Yay for pseudo-global state?
@@ -383,7 +403,9 @@ function App() {
 
     return (
         <div>
-            <h1>Level {grid.currentLevel + 1}</h1>
+            <h1>
+                Level {grid.currentLevel + 1} of {puzzles.length}
+            </h1>
             <div
                 style={{
                     display: "grid",
