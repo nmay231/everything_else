@@ -5,7 +5,12 @@ from itertools import permutations, combinations_with_replacement
 
 all_ops = (add, mul, sub, truediv)
 op_to_str = {add: "+", mul: "*", sub: "-", truediv: "/"}
-all_nums = (3, 3, 7, 1)
+# How could this fail? This fails because I forgot about commutativity.
+# I should probably try out possibilities using a different method that takes into account order of operations and the fact you only get one paren grouping.
+# Basically, I need to enumerate all states of a NSM
+# I should work on this in a general fashion since this is related work to my other stuff
+
+all_nums = (7, 7, 9, 6)
 
 
 if __name__ == "__main__":
