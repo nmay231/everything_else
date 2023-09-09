@@ -1,34 +1,25 @@
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::rc::{Rc, Weak};
 
 // TODO: Should I ever have an enum struct variant or should it always be a tuple variant containing a boring struct?
 // TODO: Is it okay to mix the two and switch between them when rapidly developing, or is that detrimental?
-struct Directory {
-    _weak_self: Weak<Self>,
+struct Directory<'a> {
     name: String,
-    parent: Option<Rc<Directory>>,
-    contents: Vec<Rc<INode>>,
+    parent: Option<&'a mut Directory<'a>>,
+    contents: Vec<INode<'a>>,
 }
 
-impl Directory {
-    fn new(name: &str, parent: Option<Rc<Self>>) -> Self {
+impl<'a> Directory<'a> {
+    fn new(name: &str, parent: Option<&'a mut Self>) -> Self {
         Self {
-            _weak_self: Weak::new(),
             name: name.into(),
             parent,
             contents: vec![],
         }
     }
 
-    fn get_parent<'a>(&'a self) -> Option<&'a Rc<Self>> {
-        self.parent.as_ref()
-    }
-
-    fn get_rc(&self) -> Rc<Directory> {
-        self._weak_self
-            .upgrade()
-            .expect("I think this means I'll always be able to keep an Rc of self?")
+    fn get_parent(&'a mut self) -> Option<&'a mut Self> {
+        self.parent
     }
 
     // fn get_rc(&self) -> Rc<Self> {
@@ -48,17 +39,17 @@ impl Directory {
     // }
 }
 
-enum INode {
-    Directory(Directory),
+enum INode<'a> {
+    Directory(Directory<'a>),
     File {
         name: String,
-        parent: Option<Rc<Directory>>,
+        parent: Option<Directory<'a>>,
         bytes: usize,
     },
 }
 
-impl INode {
-    fn new_file(name: &str, parent: Option<Rc<Directory>>, bytes: usize) -> INode {
+impl<'a> INode<'a> {
+    fn new_file(name: &str, parent: Option<Directory<'a>>, bytes: usize) -> Self {
         Self::File {
             name: name.into(),
             parent,
@@ -66,16 +57,14 @@ impl INode {
         }
     }
 
-    fn new_dir(name: &str, parent: Option<Rc<Directory>>) -> INode {
+    fn new_dir(name: &str, parent: Option<&'a Directory>) -> Self {
         Self::Directory(Directory::new(name, parent))
     }
-}
 
-impl INode {
-    pub fn get_parent(&self) -> &Option<Rc<Directory>> {
+    pub fn get_parent(&'a self) -> Option<&'a Directory<'a>> {
         match self {
-            INode::Directory(dir) => &dir.parent,
-            INode::File { parent, .. } => parent,
+            INode::Directory(dir) => dir.parent,
+            INode::File { parent, .. } => parent.as_ref(),
         }
     }
     pub fn walk_depth_first(&self, func: impl FnMut(&INode) -> ()) -> () {
@@ -110,8 +99,8 @@ fn main() -> Result<(), &'static str> {
     let f = File::open("./assets/day6.txt").or(Err("File missing or unreadable"))?;
     let lines = io::BufReader::new(f).lines();
 
-    let root = Rc::new(Directory::new("/", None));
-    let mut current_dir = Rc::clone(&root);
+    let root = Directory::new("/", None);
+    let mut current_dir = &mut root;
     let mut mode = ParseMode::Command;
 
     for (line_num, line) in lines.enumerate() {
@@ -127,20 +116,19 @@ fn main() -> Result<(), &'static str> {
             (ParseMode::Command, "$ cd") => {
                 let name = line[5..].trim();
                 if name == ".." {
-                    current_dir =
-                        Rc::clone(current_dir.get_parent().ok_or("Tried cd-ing out of root")?);
+                    current_dir = current_dir.get_parent().ok_or("Tried cd-ing out of root")?;
                 } else {
                     let target = current_dir
                         .contents
                         .iter()
-                        .filter_map(|child| match child.as_ref() {
+                        .filter_map(|child| match child {
                             INode::Directory(dir) => Some(dir),
                             INode::File { .. } => None,
                         })
                         .find(|dir| dir.name == name);
 
                     let target = target.expect("Unable to find target directory");
-                    current_dir = target.get_rc();
+                    current_dir = target;
                 }
             }
             (ParseMode::LS, _) if !line.starts_with("$") => {
@@ -151,7 +139,7 @@ fn main() -> Result<(), &'static str> {
                 if desc == "dir" {
                     current_dir
                         .contents
-                        .push(Rc::new(INode::new_dir(name, Some(current_dir.get_rc()))));
+                        .push(INode::new_dir(name, Some(current_dir)));
                     // INode::Directory(Directory::new(
                     //     name,
                     //     Some(Rc::new(current_dir)),
