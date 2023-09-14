@@ -3,6 +3,7 @@
 __pycache__/
 .venv/
 .mypy_cache/
+.hypothesis/
 
 # Rust
 target/
