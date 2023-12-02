@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["advent-2022-rust", "advent-2023-rust"]
