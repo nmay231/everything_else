@@ -30,7 +30,6 @@ fn main() -> io::Result<()> {
     let mut middle = lines.next().unwrap().unwrap();
 
     let mut sum = 0;
-    let mut numbers = vec![];
 
     for bottom in lines {
         let bottom = bottom.unwrap();
@@ -52,7 +51,6 @@ fn main() -> io::Result<()> {
 
                     if number_is_relevant(&top, &middle, &bottom, start_index..i) {
                         sum += number;
-                        numbers.push(number);
                         // color debug: print!("\x1b[1;32m{number}\x1b[0m{char}");
                     }
                     // color debug: else { print!("\x1b[1;31m{number}\x1b[0m{char}"); } continue;
@@ -65,7 +63,7 @@ fn main() -> io::Result<()> {
 
         (top, middle) = (middle, bottom);
     }
-    println!("sum = {};; numbers = {:?}", sum, numbers);
+    println!("sum = {}", sum);
     Ok(())
 }
 
