@@ -13,6 +13,10 @@ dependencies = [
 [[package]]
 name = "advent-2023-rust"
 version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "regex",
+]
 
 [[package]]
 name = "aho-corasick"
