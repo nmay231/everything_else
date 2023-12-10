@@ -22,7 +22,26 @@ fn part1(text: &str) -> Result {
 }
 
 fn part2(text: &str) -> Result {
-    0
+    let mut sum = 0;
+    for line in text.lines() {
+        let mut numbers = line
+            .split(" ")
+            .map(|x| x.parse::<i32>().unwrap())
+            .collect::<Vec<_>>();
+        let mut first_numbers = vec![numbers[0]];
+        loop {
+            numbers = numbers.windows(2).map(|pair| pair[1] - pair[0]).collect();
+            if numbers.iter().last().unwrap() == &0 && numbers.iter().nth_back(1).unwrap() == &0 {
+                break;
+            }
+            first_numbers.push(numbers[0]);
+        }
+        sum += first_numbers
+            .iter()
+            .rev()
+            .fold(0, |acc, number| (number - acc));
+    }
+    return sum;
 }
 
 fn main() -> std::io::Result<()> {
