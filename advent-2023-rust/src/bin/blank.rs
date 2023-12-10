@@ -1,6 +1,7 @@
 type Result = ();
 
 fn part1(text: &str) -> Result {}
+
 fn part2(text: &str) -> Result {}
 
 fn main() -> std::io::Result<()> {

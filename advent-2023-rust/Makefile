@@ -1,5 +1,6 @@
 WGET=$(which wget)
 CURL := $(shell which curl)
+COOKIE := $(shell cat cookie.txt)
 
 init-day%:
 	$(CURL) --cookie '$(COOKIE)' https://adventofcode.com/2023/day/${@:init-day%=%}/input -o assets/day${@:init-day%=%}.txt
