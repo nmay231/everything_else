@@ -1,15 +1,15 @@
-use std::ops::IndexMut;
-use std::thread;
+use std::collections::HashMap;
 use std::time::SystemTime;
 
-// TODO: This seems to work even with large examples (the first one takes 6 seconds, which I don't know if that's good or bad), but I can't submit it because thread::scope doesn't exist in their rust compiler. Why do they have an example with trillions of numbers? *&$#! them!
+// Well, this solution now works with n == 1_000_000_000, but I had to look at all the hints
+// to realize reserved_seats never goes above 10_000
 impl Solution {
     pub fn max_number_of_families(n: i32, reserved_seats: Vec<Vec<i32>>) -> i32 {
         let n = n as usize;
-        let mut slots_main = vec![7; n];
+        let mut slots_main = HashMap::new();
 
         for seat in &reserved_seats {
-            let row = slots_main.index_mut(seat[0] as usize - 1);
+            let row = slots_main.entry(seat[0] as usize - 1).or_insert(7);
             if *row == 0 {
                 continue;
             } else if seat[1] >> 1 == 1 {
@@ -23,29 +23,20 @@ impl Solution {
             }
         }
 
-        return thread::scope(|main| {
-            let mut handlers = vec![];
-            for chunk in slots_main.chunks(1_000_000) {
-                handlers.push(main.spawn(|| {
-                    return chunk
-                        .iter()
-                        .map(|slot| {
-                            let slot1 = slot & 0b100 > 0;
-                            let slot2 = slot & 0b010 > 0;
-                            let slot3 = slot & 0b001 > 0;
-                            if slot1 && slot3 {
-                                2
-                            } else if slot2 || slot1 || slot3 {
-                                1
-                            } else {
-                                0
-                            }
-                        })
-                        .sum::<i32>();
-                }));
-            }
-            return handlers.into_iter().map(|h| h.join().unwrap()).sum::<i32>();
-        });
+        let mut sum = (n as i32) * 2;
+        for slot in slots_main.values() {
+            let slot1 = slot & 0b100 > 0;
+            let slot2 = slot & 0b010 > 0;
+            let slot3 = slot & 0b001 > 0;
+            sum -= if slot1 && slot3 {
+                0
+            } else if slot2 || slot1 || slot3 {
+                1
+            } else {
+                2
+            };
+        }
+        return sum;
     }
 }
 
