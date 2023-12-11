@@ -1,8 +1,8 @@
-type Result = ();
+type Output = ();
 
-fn part1(text: &str) -> Result {}
+fn part1(text: &str) -> Output {}
 
-fn part2(text: &str) -> Result {}
+fn part2(_text: &str) -> Output {}
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/dayDAY_NUMBER.txt")?;
