@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messing with css layers</title>
+    <style>
+        /* Other styles always override layer styles, even those with higher specificity */
+        div {
+            border: medium solid red;
+        }
+
+        @layer testing-priority {
+
+            /* Manually inflate css specificity */
+            .class.class.class.class.class#high-specificity#high-specificity#high-specificity {
+                border: medium solid blue;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="high-specificity" class="class">example</div>
+</body>
+
+</html>
