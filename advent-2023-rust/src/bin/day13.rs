@@ -1,18 +1,32 @@
 type Output = usize;
 
-fn find_horizontal_mirror_line(rows: &[&str]) -> Option<usize> {
-    for (index, pair) in rows.windows(2).enumerate() {
-        if pair[0] == pair[1] {
-            let mut is_mirror = true;
-            for inner_index in 1..=std::cmp::min(index, (rows.len() - index).saturating_sub(2)) {
-                if rows[index - inner_index] != rows[index + inner_index + 1] {
-                    is_mirror = false;
-                    break;
+fn find_horizontal_mirror_line(rows: &[&str], allowed_smudges: usize) -> Option<usize> {
+    'outer: for row_i in 0..rows.len() - 1 {
+        let mut smudges = allowed_smudges;
+
+        let max_reach = std::cmp::min(row_i, (rows.len() - row_i).saturating_sub(2));
+        for reach in 0..=max_reach {
+            let (a, b) = (rows[row_i - reach], rows[row_i + reach + 1]);
+            if a != b {
+                if smudges == 0 {
+                    continue 'outer; // This line is not the mirroring line, check the next one
+                }
+                let diffs = a
+                    .chars()
+                    .zip(b.chars())
+                    .map(|(x1, x2)| if x1 == x2 { 0 } else { 1 })
+                    .sum::<usize>();
+
+                if diffs <= smudges {
+                    smudges -= diffs;
+                } else {
+                    continue 'outer; // We went over our alloted number of smudges, check next mirror line
                 }
             }
-            if is_mirror {
-                return Some(index + 1);
-            }
+        }
+
+        if smudges == 0 {
+            return Some(row_i + 1);
         }
     }
     None
@@ -38,16 +52,30 @@ fn part1(text: &str) -> Output {
         let tmp = transpose(&lines);
         let transposed = tmp.iter().map(|string| string.as_str()).collect::<Vec<_>>();
 
-        sum += find_horizontal_mirror_line(&transposed)
-            .or_else(|| find_horizontal_mirror_line(&lines).and_then(|x| Some(100 * x)))
+        sum += find_horizontal_mirror_line(&transposed, 0)
+            .or_else(|| find_horizontal_mirror_line(&lines, 0).and_then(|x| Some(100 * x)))
             .unwrap_or(0);
     }
 
     return sum;
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part2(text: &str) -> Output {
+    // TODO: I guess I do the same thing but allow exactly one difference in characters
+    let mut sum = 0;
+    let blocks = text.trim().split("\n\n").collect::<Vec<_>>();
+
+    for block in blocks {
+        let lines = block.lines().collect::<Vec<_>>();
+        let tmp = transpose(&lines);
+        let transposed = tmp.iter().map(|string| string.as_str()).collect::<Vec<_>>();
+
+        sum += find_horizontal_mirror_line(&transposed, 1)
+            .or_else(|| find_horizontal_mirror_line(&lines, 1).and_then(|x| Some(100 * x)))
+            .unwrap_or(0);
+    }
+
+    return sum;
 }
 
 fn main() -> std::io::Result<()> {
@@ -61,85 +89,58 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::find_horizontal_mirror_line;
+    use crate::{part1, part2};
+
+    // https://www.reddit.com/r/adventofcode/comments/18hitog/2023_day_13_easy_additional_examples/
+    const INPUT: &str = "
+#.##..##.
+..#.##.#.
+##......#
+##......#
+..#.##.#.
+..##..##.
+#.#.##.#.
+
+#...##..#
+#....#..#
+..##..###
+#####.##.
+#####.##.
+..##..###
+#....#..#
+
+.#.##.#.#
+.##..##..
+.#.##.#..
+#......##
+#......##
+.#.##.#..
+.##..##.#
+
+#..#....#
+###..##..
+.##.#####
+.##.#####
+###..##..
+#..#....#
+#..##...#
+
+#.##..##.
+..#.##.#.
+##..#...#
+##...#..#
+..#.##.#.
+..##..##.
+#.#.##.#.
+    ";
 
     #[test]
-    fn small_mirror() {
-        let input = "
-##.###.
-##.###.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            Some(1)
-        );
+    fn test_part_1() {
+        assert_eq!(part1(INPUT.trim()), 709);
     }
 
     #[test]
-    fn small_not_mirror() {
-        let input = "
-##.#.#.
-##.###.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            None
-        );
-    }
-
-    #[test]
-    fn small_mirror_extras_above() {
-        let input = "
-#.##.#.
-##.###.
-##.###.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            Some(2)
-        );
-    }
-
-    #[test]
-    fn small_mirror_extras_below() {
-        let input = "
-##.###.
-##.###.
-#.##.#.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn not_mirror_extras_above() {
-        let input = "
-#.#..#.
-#.##.#.
-##.###.
-##.###.
-#.#..#.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            None
-        );
-    }
-
-    #[test]
-    fn not_mirror_extras_below() {
-        let input = "
-#.##.#.
-##.###.
-##.###.
-#.#..#.
-#.##.#.
-        ";
-        assert_eq!(
-            find_horizontal_mirror_line(&input.trim().split("\n").collect::<Vec<_>>()),
-            None
-        );
+    fn test_part_2() {
+        assert_eq!(part2(INPUT.trim()), 1400);
     }
 }
