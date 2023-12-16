@@ -136,8 +136,41 @@ fn part1(text: &str) -> Output {
         .sum();
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn repeat<'a, T: Clone>(val: &'a [T], times: usize, sep: &[T]) -> Vec<T> {
+    let mut tmp = vec![];
+    for (i, rep) in [val].iter().cycle().take(times).enumerate() {
+        if i > 0 {
+            tmp.extend(sep.to_owned());
+        }
+        tmp.extend_from_slice(rep);
+    }
+    tmp
+}
+
+fn part2(text: &str) -> Output {
+    return text
+        .lines()
+        .map(|line| {
+            let space = line.find(' ').unwrap();
+            let springs = String::from_iter(repeat(
+                &line[..space].chars().collect::<Vec<_>>(),
+                5,
+                &['?'],
+            ));
+            let contiguous_broken_count = repeat(
+                &line[space + 1..]
+                    .split(',')
+                    .map(|n| n.parse::<usize>().unwrap())
+                    .collect::<Vec<_>>(),
+                5,
+                &[],
+            );
+            // println!("{};; {}, {:?}", line, springs, contiguous_broken_count);
+            let tmp = count_spring_row_configs(&springs, contiguous_broken_count);
+            println!("{};; {}", line, tmp);
+            tmp
+        })
+        .sum();
 }
 
 fn main() -> std::io::Result<()> {
