@@ -147,16 +147,103 @@ fn repeat<'a, T: Clone>(val: &'a [T], times: usize, sep: &[T]) -> Vec<T> {
     tmp
 }
 
+fn count_better(springs: &str, known_broken: &[usize]) -> usize {
+    count_better_(&springs.chars().collect::<Vec<_>>(), known_broken)
+}
+
+/// Perform the equivalent of binary search for this calculation.
+fn count_better_(springs: &[char], known_broken: &[usize]) -> usize {
+    debug_println!(
+        "spring='{}', known_broken={:?}",
+        String::from_iter(springs),
+        known_broken
+    );
+
+    if known_broken.len() == 0 {
+        if springs.contains(&'#') {
+            return 0;
+        } else {
+            // There's one way to satisfy no requirements
+            return 1;
+        }
+    } else if known_broken.len() == 1 {
+        let broken = known_broken[0];
+
+        let mut iter = springs.iter().enumerate().rev();
+        let last_broken = iter.find_map(|(i, char)| if *char == '#' { Some(i) } else { None });
+        let min_start = last_broken.unwrap_or(0).saturating_sub(broken - 1);
+
+        let mut iter = iter.rev();
+        let max_start = iter
+            .find_map(|(i, char)| if *char == '#' { Some(i) } else { None })
+            .or(last_broken)
+            .unwrap_or(springs.len())
+            .clamp(0, springs.len() - broken);
+
+        debug_println!("min_start={}, max_start={}", min_start, max_start);
+
+        let mut sum = 0;
+        for start in min_start..=max_start {
+            let slice = &springs[start..start + broken];
+            debug_println!("start = {}; slice = {}", start, String::from_iter(slice));
+            if !slice.contains(&'.') {
+                sum += 1
+            }
+        }
+        debug_println!("sum = {sum}");
+        return sum;
+    } else {
+        let split = known_broken.len() / 2;
+        let broken = known_broken[split];
+
+        let before = &known_broken[..split];
+        let after = &known_broken[split + 1..];
+
+        let min_start = before.len() + before.iter().sum::<usize>();
+        let max_start = springs.len() - (broken - 1) - after.len() - after.iter().sum::<usize>();
+
+        let mut sum = 0;
+        for start in min_start..max_start {
+            let end = start + broken;
+            debug_println!(
+                "{start}..{end} => '{}'",
+                String::from_iter(&springs[start..end])
+            );
+            // The slice must not have a '#' adjacent on either end
+            if start > 0 && springs[start - 1] == '#' {
+                continue;
+            } else if springs.iter().nth(end) == Some(&'#') {
+                continue;
+            }
+
+            let slice = &springs[start..end];
+            // The slice cannot contain known working springs
+            if slice.contains(&'.') {
+                continue;
+            }
+
+            debug_println!("Not skipped");
+            let on_left = count_better_(&springs[..start.saturating_sub(1)], before);
+            // Both sides must be greater than 0 since they're gonna be multiplied together
+            if on_left == 0 {
+                continue;
+            }
+            let on_right = count_better_(&springs[std::cmp::min(springs.len(), end + 1)..], after);
+            sum += on_left * on_right;
+        }
+        debug_println!("sum = {sum}");
+        return sum;
+    }
+}
+
 fn part2(text: &str) -> Output {
     return text
         .lines()
         .map(|line| {
             let space = line.find(' ').unwrap();
-            let springs = String::from_iter(repeat(
-                &line[..space].chars().collect::<Vec<_>>(),
-                5,
-                &['?'],
-            ));
+            let springs = repeat(&line[..space].chars().collect::<Vec<_>>(), 5, &['?'])
+                .into_iter()
+                .collect::<String>();
             let contiguous_broken_count = repeat(
                 &line[space + 1..]
                     .split(',')
@@ -166,8 +253,8 @@ fn part2(text: &str) -> Output {
                 &[],
             );
             // println!("{};; {}, {:?}", line, springs, contiguous_broken_count);
-            let tmp = count_spring_row_configs(&springs, contiguous_broken_count);
-            println!("{};; {}", line, tmp);
+            let tmp = count_better(&springs, &contiguous_broken_count);
+            debug_println!("{};; {}", line, tmp);
             tmp
         })
         .sum();
@@ -184,9 +271,10 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod test {
-    use rstest::rstest;
+    use rstest;
+    use rstest::*;
 
-    use crate::count_spring_row_configs;
+    use crate::{count_better, count_spring_row_configs};
 
     #[rstest]
     #[case(".###.##.#...", vec![3, 2, 1], 1)]
@@ -207,8 +295,14 @@ mod test {
         #[case] springs: &str,
         #[case] broken: Vec<usize>,
         #[case] expected: usize,
+        #[values(true, false)] use_fast_version: bool,
     ) {
-        let actual = count_spring_row_configs(springs, broken);
-        assert_eq!(actual, expected);
+        if use_fast_version {
+            let actual = count_better(springs, &broken);
+            assert_eq!(actual, expected);
+        } else {
+            let actual = count_spring_row_configs(springs, broken);
+            assert_eq!(actual, expected);
+        }
     }
 }
