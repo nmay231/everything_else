@@ -1,6 +1,6 @@
 type Output = usize;
 
-fn part1(text: &str) -> Output {
+fn galaxy_inflation(text: &str, inflation_effect: usize) -> Output {
     let mut lines = text.lines().peekable();
 
     let mut in_column = vec![false; lines.peek().unwrap().len()];
@@ -15,7 +15,7 @@ fn part1(text: &str) -> Output {
                 galaxies.push((row_index, i));
             }
         }
-        row_index += if in_row { 1 } else { 2 };
+        row_index += if in_row { 1 } else { inflation_effect + 1 };
         in_row = false;
     }
 
@@ -24,7 +24,7 @@ fn part1(text: &str) -> Output {
     for column in in_column {
         offset.push(index);
         if !column {
-            index += 1;
+            index += inflation_effect;
         }
     }
 
@@ -46,8 +46,12 @@ fn part1(text: &str) -> Output {
         .sum();
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part1(text: &str) -> Output {
+    galaxy_inflation(text, 1)
+}
+
+fn part2(text: &str) -> Output {
+    galaxy_inflation(text, 999_999)
 }
 
 fn main() -> std::io::Result<()> {
