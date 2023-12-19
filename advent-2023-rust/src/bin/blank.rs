@@ -14,7 +14,7 @@ fn main() -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #[test]
     fn sample() {
         assert!(true);
