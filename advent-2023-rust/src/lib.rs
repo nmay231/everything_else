@@ -3,32 +3,43 @@
 pub struct UsizePoint(pub usize, pub usize);
 
 impl UsizePoint {
+    #[inline(always)]
+    #[deprecated(note = "Use next_point_steps()")]
     pub fn next_point(&self, direc: &Direc, grid_size: &UsizePoint) -> Option<UsizePoint> {
+        self.next_point_steps(1, direc, grid_size)
+    }
+
+    pub fn next_point_steps(
+        &self,
+        steps: usize,
+        direc: &Direc,
+        grid_size: &UsizePoint,
+    ) -> Option<UsizePoint> {
         match direc {
             Direc::North => {
-                if self.0 > 0 {
-                    Some(UsizePoint(self.0 - 1, self.1))
+                if self.0 >= steps {
+                    Some(UsizePoint(self.0 - steps, self.1))
                 } else {
                     None
                 }
             }
             Direc::East => {
-                if self.1 + 1 < grid_size.1 {
-                    Some(UsizePoint(self.0, self.1 + 1))
+                if self.1 + steps < grid_size.1 {
+                    Some(UsizePoint(self.0, self.1 + steps))
                 } else {
                     None
                 }
             }
             Direc::South => {
-                if self.0 + 1 < grid_size.0 {
-                    Some(UsizePoint(self.0 + 1, self.1))
+                if self.0 + steps < grid_size.0 {
+                    Some(UsizePoint(self.0 + steps, self.1))
                 } else {
                     None
                 }
             }
             Direc::West => {
-                if self.1 > 0 {
-                    Some(UsizePoint(self.0, self.1 - 1))
+                if self.1 >= steps {
+                    Some(UsizePoint(self.0, self.1 - steps))
                 } else {
                     None
                 }
@@ -51,7 +62,7 @@ pub enum Direc {
 }
 
 impl Direc {
-    const POWERS_OF_I: [Direc; 4] = [Direc::East, Direc::North, Direc::West, Direc::South];
+    pub const POWERS_OF_I: [Direc; 4] = [Direc::East, Direc::North, Direc::West, Direc::South];
 
     pub fn rotate(&self, rotation_counter_clockwise: i32) -> Self {
         let current_index = Direc::POWERS_OF_I
