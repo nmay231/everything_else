@@ -6,8 +6,8 @@ type Output = usize;
 
 // I feel pretty proud of myself, not gonna lie. I wrote this all, fixed
 // three bugs on the example case in 5 minutes, got the right answer, then
-// got the right answer on the final one with no changes. Pretty hyped right now.
-fn part1(text: &str) -> Output {
+// got the right answer for part 1 with no changes. Pretty hyped right now.
+fn rolling_crucibles(text: &str, min_blocks: usize, max_blocks: usize) -> Output {
     let grid_size = &UsizePoint(text.lines().count(), text.lines().next().unwrap().len());
     let grid = text.trim().replace('\n', "").chars().collect::<Vec<_>>();
 
@@ -29,7 +29,7 @@ fn part1(text: &str) -> Output {
     while let Some((mut cost, mut point, direc, mut heat_loss)) = paths.pop() {
         let left = direc.rotate(1);
         let right = direc.rotate(-1);
-        for _ in 0..3 {
+        for block in 0..max_blocks {
             point = match point.next_point(&direc, grid_size) {
                 Some(p) => p,
                 None => break, // Grid edge
@@ -43,12 +43,15 @@ fn part1(text: &str) -> Output {
             };
             cost += cell_heat_loss as usize;
 
-            if let Some(best_heat_loss) = min_heat_loss.get(&(point, direc)) {
+            if block < min_blocks {
+                continue; // The crucible must roll min_blocks before turning
+            } else if let Some(best_heat_loss) = min_heat_loss.get(&(point, direc)) {
                 if *best_heat_loss <= heat_loss {
                     // TODO: If I need shortest path as well as lowest heat_loss in part2, I need to change this.
                     continue;
                 }
             }
+            min_heat_loss.insert((point, direc), heat_loss);
 
             if point == target_point
                 && (best_winning_cost.is_none() || cost < best_winning_cost.unwrap())
@@ -66,8 +69,6 @@ fn part1(text: &str) -> Output {
                 assert_eq!(cost, heat_loss as usize, "cost is different than heat_loss at target_point. Did not subtract distance at some point");
                 best_winning_cost = Some(cost);
             }
-
-            min_heat_loss.insert((point, direc), heat_loss);
 
             // Keep `paths` sorted by cost so the least costly option is popped off first
             let index = paths
@@ -91,8 +92,12 @@ fn part1(text: &str) -> Output {
     return best_winning_cost.expect("Didn't find a winning cost I guess");
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part1(text: &str) -> Output {
+    rolling_crucibles(text, 0, 3)
+}
+
+fn part2(text: &str) -> Output {
+    rolling_crucibles(text, 3, 10)
 }
 
 fn main() -> std::io::Result<()> {
