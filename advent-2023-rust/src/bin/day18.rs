@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::vec;
 
 use advent_2023_rust::{Direc, UsizePoint};
@@ -72,6 +73,9 @@ fn is_inside(grid: &[char], grid_size: &UsizePoint, point: &UsizePoint, walls: c
             }
         }
     }
+}
+
+fn parse_path(text: &str, part1: bool) -> Vec<(UsizePoint, Direc)> {
 }
 
 fn part1(text: &str) -> Output {
@@ -179,9 +183,187 @@ fn part1(text: &str) -> Output {
     return grid.iter().filter(|char| char == &&'#').count();
 }
 
-// TODO: Of course my first implementation is not gonna generalize. Fudge.
-fn part2(_text: &str) -> Output {
-    0
+fn length_between(a: usize, b: usize) -> usize {
+    a.abs_diff(b) + 1
+}
+
+fn furthest_point_along(direc: &Direc, a: &UsizePoint, b: &UsizePoint) -> UsizePoint {
+    std::cmp::max_by(UsizePoint(a.0, b.1), UsizePoint(b.0, a.1), |a, b| {
+        direc.cmp_points(a, b)
+    })
+}
+
+// TODO: Of course my first implementation was not gonna generalize. Fudge.
+fn part2(text: &str) -> Output {
+    let mut point = (0isize, 0isize);
+    let mut path = vec![];
+    let mut origin = point.to_owned();
+    let mut grid_size = point.to_owned();
+
+    let mut prev_direc = ' ';
+    let mut rotation = 0isize;
+
+    for line in text.lines() {
+        let (_, color) = line.rsplit_once(' ').unwrap();
+        let color = &color[2..color.len() - 1]; // Remove (# ... ) from around the color
+        let steps = isize::from_str_radix(&color[..color.len() - 1], 16).unwrap();
+        const DIRECTIONS: [char; 4] = ['R', 'D', 'L', 'U'];
+        let direc = DIRECTIONS[color[color.len() - 1..].parse::<usize>().unwrap()];
+
+        match direc {
+            'U' => {
+                path.push((point, Direc::North));
+                point.0 -= steps;
+                origin.0 = std::cmp::min(origin.0, point.0);
+            }
+            'D' => {
+                path.push((point, Direc::South));
+                point.0 += steps;
+                grid_size.0 = std::cmp::max(grid_size.0, point.0);
+            }
+            'L' => {
+                path.push((point, Direc::West));
+                point.1 -= steps;
+                origin.1 = std::cmp::min(origin.1, point.1);
+            }
+            'R' => {
+                path.push((point, Direc::East));
+                point.1 += steps;
+                grid_size.1 = std::cmp::max(grid_size.1, point.1);
+            }
+            _ => panic!("Unexpected direction in puzzle input: {direc}"),
+        };
+
+        rotation += match (prev_direc, direc) {
+            (' ', _) => 0,
+            ('U', 'R') | ('R', 'D') | ('D', 'L') | ('L', 'U') => -1,
+            ('R', 'U') | ('U', 'L') | ('L', 'D') | ('D', 'R') => 1,
+            _ => panic!("Unexpected change in direction from '{prev_direc}' to '{direc}'"),
+        };
+        prev_direc = direc;
+    }
+
+    assert_eq!(point, (0, 0));
+    // While the loop closes, you don't get 4 90-deg turns because the last turn is "implicit"
+    assert_eq!(rotation.abs(), 3);
+    let rotate_inside = (rotation / 3) as i32;
+
+    // println!("{:?}", path);
+    let mut path = path
+        .into_iter()
+        .map(|(point, direc)| {
+            (
+                UsizePoint((point.0 - origin.0) as usize, (point.1 - origin.1) as usize),
+                direc,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let mut area: usize = 0;
+    let mut neg_area: usize = 0;
+    'outer: while path.len() > 4 {
+        for (index, (prev, a, b, c, d, next)) in
+            path.clone().iter().circular_tuple_windows().enumerate()
+        {
+            if (a.1.rotate(1) == b.1 && b.1.rotate(1) == c.1)
+                || (a.1.rotate(-1) == b.1 && b.1.rotate(-1) == c.1)
+            {
+                let nub_neck = std::cmp::min_by(a.0, d.0, |x, y| a.1.cmp_points(x, y));
+                let nub_head = std::cmp::max_by_key(b.0, c.0, |x| nub_neck.manhattan_distance(x));
+                let diameter = nub_neck.manhattan_distance(&nub_head);
+
+                // Search for points that visit inside of this box we're attempting to shrink
+                for (point, _) in path.iter().cycle().skip(index + 6).take(path.len() - 6) {
+                    let diff_sum =
+                        nub_neck.manhattan_distance(point) + nub_head.manhattan_distance(point);
+                    if diff_sum <= diameter {
+                        assert_eq!(diff_sum, diameter, "They should always be equal or greater, but I never use `==` as a check in loop");
+                        // There are points inside the box, skip for now
+                        continue 'outer;
+                    }
+                }
+
+                let mut nub_area =
+                    length_between(nub_neck.0, nub_head.0) * length_between(nub_neck.1, nub_head.1);
+
+                // Hopefully this example helps with the following match statement
+                // (prev.1 == b.1, d.1 == b.1, a.1 == Direc::North and a.0 is more north than d.0)
+                // => (true, false, Ordering::Greater)
+                // .......b>--c....
+                // .......|...V....
+                // .......|...|....
+                // .......^...|....
+                // prev>--a...|....
+                // ...........|....
+                // ...next---<d....
+
+                // Remove excess points
+                match (prev.1 == b.1, d.1 == b.1, a.1.cmp_points(&a.0, &d.0)) {
+                    (true, true, Ordering::Equal) => {
+                        // Remove a, b, c, d
+                        path.splice(index + 1..index + 5, []);
+                        // Do not double count the edge from a to d
+                        nub_area -= a.0.manhattan_distance(&d.0) + 1;
+                    }
+                    (true, false, Ordering::Equal) => {
+                        // Remove a, b, c, d
+                        path.splice(index + 1..index + 5, []);
+                        // Do not double count the edge from a to next
+                        nub_area -= a.0.manhattan_distance(&next.0) + 1;
+                    }
+                    (false, true, Ordering::Equal) => {
+                        // Remove prev..d, replace prev with (prev.0, b.1)
+                        path.splice(index..index + 5, [(prev.0, b.1)]);
+                        nub_area -= prev.0.manhattan_distance(&d.0) + 1;
+                    }
+                    // etc.
+                    (false, false, Ordering::Equal) => {
+                        path.splice(index..index + 5, [(prev.0, b.1)]);
+                        nub_area -= prev.0.manhattan_distance(&next.0) + 1;
+                    }
+
+                    (_, true, Ordering::Less) => {
+                        let new_b0 = furthest_point_along(&a.1, &a.0, &d.0);
+                        path.splice(index + 2..index + 5, [(new_b0, b.1)]);
+                        nub_area -= new_b0.manhattan_distance(&d.0) + 1;
+                    }
+                    (_, false, Ordering::Less) => {
+                        let new_b0 = furthest_point_along(&a.1, &a.0, &d.0);
+                        path.splice(index + 2..index + 5, [(new_b0, b.1)]);
+                        nub_area -= new_b0.manhattan_distance(&next.0) + 1;
+                    }
+
+                    (true, _, Ordering::Greater) => {
+                        let new_c0 = furthest_point_along(&a.1, &a.0, &d.0);
+                        path.splice(index + 1..index + 4, [(new_c0, c.1)]);
+                        nub_area -= a.0.manhattan_distance(&new_c0) + 1;
+                    }
+                    (false, _, Ordering::Greater) => {
+                        let new_c0 = furthest_point_along(&a.1, &a.0, &d.0);
+                        path.splice(
+                            index..index + 4,
+                            [(prev.0, prev.1.rotate(2)), (new_c0, c.1)],
+                        );
+                        nub_area -= prev.0.manhattan_distance(&new_c0) + 1;
+                    }
+                }
+                if a.1.rotate(rotate_inside) == b.1 {
+                    // Turning in means the nub is an out-ty; aka positive area
+                    area += nub_area;
+                } else {
+                    neg_area += nub_area;
+                }
+                for (a, b) in path.iter().circular_tuple_windows() {
+                    assert!(a.0 == b.0 || a.1 == b.1);
+                    assert!(a.1 == b.1.rotate(1) || a.1 == b.1.rotate(-1));
+                }
+                continue 'outer; // We continue 'outer instead of break to detect infinite loops
+            }
+        }
+
+        unreachable!("A finite path should have some consecutive pairs of repeated turns (a nub)");
+    }
+    return area - neg_area;
 }
 
 fn main() -> std::io::Result<()> {

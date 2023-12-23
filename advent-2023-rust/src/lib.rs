@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 /// (row, column)
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct UsizePoint(pub usize, pub usize);
@@ -51,6 +53,11 @@ impl UsizePoint {
     pub fn as_index(&self, grid_size: &UsizePoint) -> usize {
         grid_size.1 * self.0 + self.1
     }
+
+    #[inline(always)]
+    pub fn manhattan_distance(&self, other: &UsizePoint) -> usize {
+        self.0.abs_diff(other.0) + self.1.abs_diff(other.1)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
@@ -72,5 +79,15 @@ impl Direc {
             .unwrap();
         return Direc::POWERS_OF_I
             [(rotation_counter_clockwise + current_index).rem_euclid(4) as usize];
+    }
+
+    #[inline]
+    pub fn cmp_points(&self, a: &UsizePoint, b: &UsizePoint) -> Ordering {
+        match self {
+            Direc::South => a.0.cmp(&b.0),
+            Direc::North => b.0.cmp(&a.0),
+            Direc::West => a.1.cmp(&b.1),
+            Direc::East => b.1.cmp(&a.1),
+        }
     }
 }
