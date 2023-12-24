@@ -221,9 +221,7 @@ fn part2(mut path: Path, ref _grid_size: UsizePoint, rotate_inside: isize) -> Ou
     let mut neg_area: usize = 0;
 
     'outer: while path.len() > 4 {
-        println!("path.len()={}", path.len());
-
-        for (index, (prev, a, b, c, d, next)) in
+        'inner: for (index, (prev, a, b, c, d, next)) in
             path.clone().iter().circular_tuple_windows().enumerate()
         {
             if (a.1.rotate(1) == b.1 && b.1.rotate(1) == c.1)
@@ -240,7 +238,7 @@ fn part2(mut path: Path, ref _grid_size: UsizePoint, rotate_inside: isize) -> Ou
                     if diff_sum <= diameter {
                         assert_eq!(diff_sum, diameter, "They should always be equal or greater, but I never use `==` as a check in loop");
                         // There are points inside the box, skip for now
-                        continue 'outer;
+                        continue 'inner;
                     }
                 }
 
