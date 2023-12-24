@@ -86,8 +86,8 @@ impl Direc {
         match self {
             Direc::South => a.0.cmp(&b.0),
             Direc::North => b.0.cmp(&a.0),
-            Direc::West => a.1.cmp(&b.1),
-            Direc::East => b.1.cmp(&a.1),
+            Direc::East => a.1.cmp(&b.1),
+            Direc::West => b.1.cmp(&a.1),
         }
     }
 }

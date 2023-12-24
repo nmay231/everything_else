@@ -75,23 +75,33 @@ fn is_inside(grid: &[char], grid_size: &UsizePoint, point: &UsizePoint, walls: c
     }
 }
 
-fn parse_path(text: &str, part1: bool) -> Vec<(UsizePoint, Direc)> {
-}
+type Path = Vec<(UsizePoint, Direc)>;
 
-fn part1(text: &str) -> Output {
-    let mut point = (0i32, 0i32);
+fn parse_path(text: &str, is_part1: bool) -> (Path, UsizePoint, isize) {
+    let mut point = (0isize, 0isize);
     let mut path = vec![];
     let mut origin = point.to_owned();
     let mut grid_size = point.to_owned();
 
     let mut prev_direc = " ";
-    let mut rotation = 0i32;
+    let mut rotation = 0isize;
 
     for line in text.lines() {
-        let (direc, line) = line.split_once(' ').unwrap();
-        let (steps, _color) = line.split_once(' ').unwrap();
-        let steps = steps.parse::<i32>().unwrap();
-        let _color = &_color[2.._color.len() - 1]; // Remove (# ... ) from around the color
+        let (direc, steps) = if is_part1 {
+            let (direc, line) = line.split_once(' ').unwrap();
+            let (steps, _color) = line.split_once(' ').unwrap();
+            (direc, steps.parse::<isize>().unwrap())
+        } else {
+            let (_, color) = line.rsplit_once(' ').unwrap();
+            let color = &color[2..color.len() - 1]; // Remove (# ... ) from around the color
+                                                    // let steps = ;
+            const DIRECTIONS: [&str; 4] = ["R", "D", "L", "U"];
+            let direc = DIRECTIONS[color[color.len() - 1..].parse::<usize>().unwrap()];
+            (
+                direc,
+                isize::from_str_radix(&color[..color.len() - 1], 16).unwrap(),
+            )
+        };
 
         match direc {
             "U" => {
@@ -127,9 +137,11 @@ fn part1(text: &str) -> Output {
     }
 
     assert_eq!(point, (0, 0));
-    // While the loop closes, you don't get 4 90-deg turns because the last turn is "implicit"
-    assert_eq!(rotation.abs(), 3);
 
+    let grid_size = UsizePoint(
+        (grid_size.0 - origin.0 + 1) as usize,
+        (grid_size.1 - origin.1 + 1) as usize,
+    );
     let path = path
         .into_iter()
         .map(|(point, direc)| {
@@ -139,10 +151,19 @@ fn part1(text: &str) -> Output {
             )
         })
         .collect::<Vec<_>>();
-    let grid_size = &UsizePoint(
-        (grid_size.0 - origin.0 + 1) as usize,
-        (grid_size.1 - origin.1 + 1) as usize,
-    );
+
+    let last_direc = path.last().unwrap().1;
+    rotation += if last_direc.rotate(1) == path[0].1 {
+        1
+    } else {
+        -1
+    };
+    assert_eq!(rotation.abs(), 4);
+
+    (path, grid_size, rotation / 4)
+}
+
+fn part1(path: Path, ref grid_size: UsizePoint, _rotate_inside: isize) -> Output {
     let mut grid = vec!['.'; grid_size.0 * grid_size.1];
 
     // Draw the outline
@@ -194,81 +215,21 @@ fn furthest_point_along(direc: &Direc, a: &UsizePoint, b: &UsizePoint) -> UsizeP
 }
 
 // TODO: Of course my first implementation was not gonna generalize. Fudge.
-fn part2(text: &str) -> Output {
-    let mut point = (0isize, 0isize);
-    let mut path = vec![];
-    let mut origin = point.to_owned();
-    let mut grid_size = point.to_owned();
-
-    let mut prev_direc = ' ';
-    let mut rotation = 0isize;
-
-    for line in text.lines() {
-        let (_, color) = line.rsplit_once(' ').unwrap();
-        let color = &color[2..color.len() - 1]; // Remove (# ... ) from around the color
-        let steps = isize::from_str_radix(&color[..color.len() - 1], 16).unwrap();
-        const DIRECTIONS: [char; 4] = ['R', 'D', 'L', 'U'];
-        let direc = DIRECTIONS[color[color.len() - 1..].parse::<usize>().unwrap()];
-
-        match direc {
-            'U' => {
-                path.push((point, Direc::North));
-                point.0 -= steps;
-                origin.0 = std::cmp::min(origin.0, point.0);
-            }
-            'D' => {
-                path.push((point, Direc::South));
-                point.0 += steps;
-                grid_size.0 = std::cmp::max(grid_size.0, point.0);
-            }
-            'L' => {
-                path.push((point, Direc::West));
-                point.1 -= steps;
-                origin.1 = std::cmp::min(origin.1, point.1);
-            }
-            'R' => {
-                path.push((point, Direc::East));
-                point.1 += steps;
-                grid_size.1 = std::cmp::max(grid_size.1, point.1);
-            }
-            _ => panic!("Unexpected direction in puzzle input: {direc}"),
-        };
-
-        rotation += match (prev_direc, direc) {
-            (' ', _) => 0,
-            ('U', 'R') | ('R', 'D') | ('D', 'L') | ('L', 'U') => -1,
-            ('R', 'U') | ('U', 'L') | ('L', 'D') | ('D', 'R') => 1,
-            _ => panic!("Unexpected change in direction from '{prev_direc}' to '{direc}'"),
-        };
-        prev_direc = direc;
-    }
-
-    assert_eq!(point, (0, 0));
-    // While the loop closes, you don't get 4 90-deg turns because the last turn is "implicit"
-    assert_eq!(rotation.abs(), 3);
-    let rotate_inside = (rotation / 3) as i32;
-
-    // println!("{:?}", path);
-    let mut path = path
-        .into_iter()
-        .map(|(point, direc)| {
-            (
-                UsizePoint((point.0 - origin.0) as usize, (point.1 - origin.1) as usize),
-                direc,
-            )
-        })
-        .collect::<Vec<_>>();
-
+fn part2(mut path: Path, ref _grid_size: UsizePoint, rotate_inside: isize) -> Output {
+    let rotate_inside = rotate_inside as i32;
     let mut area: usize = 0;
     let mut neg_area: usize = 0;
+
     'outer: while path.len() > 4 {
+        println!("path.len()={}", path.len());
+
         for (index, (prev, a, b, c, d, next)) in
             path.clone().iter().circular_tuple_windows().enumerate()
         {
             if (a.1.rotate(1) == b.1 && b.1.rotate(1) == c.1)
                 || (a.1.rotate(-1) == b.1 && b.1.rotate(-1) == c.1)
             {
-                let nub_neck = std::cmp::min_by(a.0, d.0, |x, y| a.1.cmp_points(x, y));
+                let nub_neck = std::cmp::max_by(a.0, d.0, |x, y| a.1.cmp_points(x, y));
                 let nub_head = std::cmp::max_by_key(b.0, c.0, |x| nub_neck.manhattan_distance(x));
                 let diameter = nub_neck.manhattan_distance(&nub_head);
 
@@ -283,19 +244,20 @@ fn part2(text: &str) -> Output {
                     }
                 }
 
-                let mut nub_area =
+                let nub_area =
                     length_between(nub_neck.0, nub_head.0) * length_between(nub_neck.1, nub_head.1);
+                let dividing_edge_area;
 
                 // Hopefully this example helps with the following match statement
                 // (prev.1 == b.1, d.1 == b.1, a.1 == Direc::North and a.0 is more north than d.0)
                 // => (true, false, Ordering::Greater)
-                // .......b>--c....
-                // .......|...V....
-                // .......|...|....
-                // .......^...|....
-                // prev>--a...|....
-                // ...........|....
-                // ...next---<d....
+                // .......b>--c....    .......*****....
+                // .......|...V....    .......*****....
+                // .......|...|....    .......*****....
+                // .......^...|.... => .......*****.... => area += 20
+                // prev>--a...|....    prev>------c'....
+                // ...........|....    ...........V....
+                // ...next---<d....    ...next---<d....
 
                 // Remove excess points
                 match (prev.1 == b.1, d.1 == b.1, a.1.cmp_points(&a.0, &d.0)) {
@@ -303,40 +265,40 @@ fn part2(text: &str) -> Output {
                         // Remove a, b, c, d
                         path.splice(index + 1..index + 5, []);
                         // Do not double count the edge from a to d
-                        nub_area -= a.0.manhattan_distance(&d.0) + 1;
+                        dividing_edge_area = a.0.manhattan_distance(&d.0) + 1;
                     }
                     (true, false, Ordering::Equal) => {
                         // Remove a, b, c, d
                         path.splice(index + 1..index + 5, []);
                         // Do not double count the edge from a to next
-                        nub_area -= a.0.manhattan_distance(&next.0) + 1;
+                        dividing_edge_area = a.0.manhattan_distance(&next.0) + 1;
                     }
                     (false, true, Ordering::Equal) => {
                         // Remove prev..d, replace prev with (prev.0, b.1)
                         path.splice(index..index + 5, [(prev.0, b.1)]);
-                        nub_area -= prev.0.manhattan_distance(&d.0) + 1;
+                        dividing_edge_area = prev.0.manhattan_distance(&d.0) + 1;
                     }
                     // etc.
                     (false, false, Ordering::Equal) => {
                         path.splice(index..index + 5, [(prev.0, b.1)]);
-                        nub_area -= prev.0.manhattan_distance(&next.0) + 1;
+                        dividing_edge_area = prev.0.manhattan_distance(&next.0) + 1;
                     }
 
                     (_, true, Ordering::Less) => {
                         let new_b0 = furthest_point_along(&a.1, &a.0, &d.0);
                         path.splice(index + 2..index + 5, [(new_b0, b.1)]);
-                        nub_area -= new_b0.manhattan_distance(&d.0) + 1;
+                        dividing_edge_area = new_b0.manhattan_distance(&d.0) + 1;
                     }
                     (_, false, Ordering::Less) => {
                         let new_b0 = furthest_point_along(&a.1, &a.0, &d.0);
                         path.splice(index + 2..index + 5, [(new_b0, b.1)]);
-                        nub_area -= new_b0.manhattan_distance(&next.0) + 1;
+                        dividing_edge_area = new_b0.manhattan_distance(&next.0) + 1;
                     }
 
                     (true, _, Ordering::Greater) => {
                         let new_c0 = furthest_point_along(&a.1, &a.0, &d.0);
                         path.splice(index + 1..index + 4, [(new_c0, c.1)]);
-                        nub_area -= a.0.manhattan_distance(&new_c0) + 1;
+                        dividing_edge_area = a.0.manhattan_distance(&new_c0) + 1;
                     }
                     (false, _, Ordering::Greater) => {
                         let new_c0 = furthest_point_along(&a.1, &a.0, &d.0);
@@ -344,41 +306,108 @@ fn part2(text: &str) -> Output {
                             index..index + 4,
                             [(prev.0, prev.1.rotate(2)), (new_c0, c.1)],
                         );
-                        nub_area -= prev.0.manhattan_distance(&new_c0) + 1;
+                        dividing_edge_area = prev.0.manhattan_distance(&new_c0) + 1;
                     }
                 }
                 if a.1.rotate(rotate_inside) == b.1 {
                     // Turning in means the nub is an out-ty; aka positive area
-                    area += nub_area;
+                    area += nub_area - dividing_edge_area;
                 } else {
-                    neg_area += nub_area;
+                    //                N = nub_area;  P=perimeter; E=dividing_edge; 2=shared corners; new_area += 6
+                    // #####.......   #####.......   #####.......   #####.......   #####.......    #####.......
+                    // #####.......   #####.......   #####.......   #####.......   #####.......    #####.......
+                    // #B#<A....... = #NNNN....... - #PPPP....... + ####E....... - ####2....... => #####.......
+                    // #V..........   #NNNN.......   #P..P.......   ##..E.......   ##..........    ##***.......
+                    // ##.......^>#   #NNNN....###   #P..P....###   ##..E....###   ##.......###    ##***....###
+                    // #C>######D##   #NNNN#######   #PPPP#######   ####E#######   ####2#######    ############
+                    // ############   ############   ############   ############   ############    ############
+                    let perimeter_area = 2 * (nub_neck.manhattan_distance(&nub_head));
+                    neg_area += nub_area - perimeter_area + dividing_edge_area - 2;
                 }
                 for (a, b) in path.iter().circular_tuple_windows() {
-                    assert!(a.0 == b.0 || a.1 == b.1);
+                    assert!(a.0 .0 == b.0 .0 || a.0 .1 == b.0 .1);
                     assert!(a.1 == b.1.rotate(1) || a.1 == b.1.rotate(-1));
                 }
                 continue 'outer; // We continue 'outer instead of break to detect infinite loops
             }
         }
 
-        unreachable!("A finite path should have some consecutive pairs of repeated turns (a nub)");
+        unreachable!(
+            "A finite path should have some consecutive pairs of repeated turns (aka a nub)"
+        );
     }
+
+    let (corner1, corner2) = (path[0].0, path[2].0);
+    area += length_between(corner1.0, corner2.0) * length_between(corner1.1, corner2.1);
     return area - neg_area;
 }
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day18.txt")?;
 
-    println!("part 1 result = {:?}", part1(&text));
-    println!("part 2 result = {:?}", part2(&text));
+    let (path, grid_size, rotate_inside) = parse_path(&text, true);
+    println!(
+        "part 1 result = {:?}",
+        part1(path, grid_size, rotate_inside)
+    );
+    let (path, grid_size, rotate_inside) = parse_path(&text, false);
+    println!(
+        "part 2 result = {:?}",
+        part2(path, grid_size, rotate_inside)
+    );
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn sample() {
-        assert!(true);
+    use itertools::Itertools;
+    use rstest::*;
+
+    enum TestWhich {
+        Part1,
+        Part2,
+        // TODO: Useless
+        // BothEqual,
+    }
+
+    use crate::{parse_path, part1, part2};
+
+    #[rstest]
+    #[case::true_true_equal("R1;U1;R1;D1;R1;D1;L3;U1", 10)]
+    #[case::true_false_equal("R1;U1;R2;D1;L1;D1;L2;U1", 10)]
+    #[case::false_true_equal("L1;U1;R2;D1;R1;D1;L2;U1", 10)]
+    #[case::false_false_equal("L1;U1;R3;D1;L1;D1;L1;U1", 10)]
+    #[case::true_true_less("R1;U2;R1;D1;R1;D2;L3;U1", 13)]
+    #[case::false_true_less("L1;U2;R1;D1;R1;D2;L1;U1", 10)]
+    #[case::true_false_less("R1;U2;R2;D1;L1;D2;L2;U1", 12)]
+    #[case::false_false_less("L1;U2;R3;D1;L2;D1", 10)]
+    #[case::true_true_greater("L1;U1;L1;D2;L1;D1;R3;U2", 13)]
+    #[case::false_true_greater("L1;U1;L1;D2;R1;D1;R1;U2", 10)]
+    #[case::true_false_greater("R1;U1;L2;D2;L1;D1;R2;U2", 12)]
+    #[case::false_false_greater("R2;U1;L3;D2;R1;U1", 10)]
+    #[case::fake_negative_area("R1;D1;R1;U1;R1;D2;L3;U2", 12)]
+    #[case::actual_negative_area("R1;D2;R2;U2;R1;D3;L4;U3", 18)]
+    #[case::first_example("R6;D5;L2;D2;R2;D2;L5;U2;L1;U2;R2;U3;L2;U2", 62)]
+    fn test_part1_and_part2(
+        #[case] instructions: &str,
+        #[case] expected: usize,
+        #[values(TestWhich::Part1, TestWhich::Part2)] test_which: TestWhich,
+    ) {
+        // Transform compacted instructions into part1-compatible text and parse
+        let text = &instructions
+            .split(';')
+            .map(|step| [&step[..1], " ", &step[1..], " (#fake_color_here)"].join(""))
+            .join("\n");
+        let (path, grid_size, rotate_inside) = parse_path(text, true);
+
+        match test_which {
+            TestWhich::Part1 => assert_eq!(part1(path, grid_size, rotate_inside), expected),
+            TestWhich::Part2 => assert_eq!(part2(path, grid_size, rotate_inside), expected),
+            // TestWhich::BothEqual => assert_eq!(
+            //     part1(path.to_owned(), grid_size.to_owned(), rotate_inside),
+            //     part2(path, grid_size, rotate_inside),
+            // ),
+        }
     }
 }
