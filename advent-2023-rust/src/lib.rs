@@ -6,7 +6,6 @@ pub struct UsizePoint(pub usize, pub usize);
 
 impl UsizePoint {
     #[inline(always)]
-    #[deprecated(note = "Use next_point_steps()")]
     pub fn next_point(&self, direc: &Direc, grid_size: &UsizePoint) -> Option<UsizePoint> {
         self.next_point_steps(1, direc, grid_size)
     }
@@ -52,6 +51,22 @@ impl UsizePoint {
     #[inline(always)]
     pub fn as_index(&self, grid_size: &UsizePoint) -> usize {
         grid_size.1 * self.0 + self.1
+    }
+
+    #[inline(always)]
+    pub fn from_index(grid_size: &UsizePoint, index: usize) -> Self {
+        Self(index / grid_size.1, index % grid_size.1)
+    }
+
+    #[inline(always)]
+    pub fn debug_grid(&self, grid: &[char]) {
+        assert_eq!(self.0 * self.1, grid.len());
+        for row_i in 0..self.0 {
+            println!(
+                "{}",
+                String::from_iter(&grid[row_i * self.1..(row_i + 1) * self.1])
+            );
+        }
     }
 
     #[inline(always)]
