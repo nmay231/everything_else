@@ -18,6 +18,8 @@ dependencies = [
  "itertools",
  "lazy_static",
  "num-bigint",
+ "num-integer",
+ "num-traits",
  "rand",
  "regex",
  "rstest",

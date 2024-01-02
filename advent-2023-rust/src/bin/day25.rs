@@ -1,9 +1,11 @@
 #![feature(assert_matches)]
-use itertools::Itertools;
+use itertools::{Combinations, Itertools};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::Debug;
 use std::hash::Hash;
+use std::ops::Range;
 use std::time::Instant;
 
 // This is so cool! Rust type aliases are powerful.
@@ -27,9 +29,10 @@ impl<'a> EdgeVisitTrait<&'a str> for EdgeVisitCount<'a, &'a str> {
 trait UndirectedGraphTrait<'a, T> {
     fn add_edge(&'a mut self, a: T, b: T);
     fn remove_edge(&'a mut self, a: T, b: T);
+    fn all_edges(&'a self) -> Vec<(&'a T, &'a T)>;
 }
 
-impl<'a, T: Eq + Hash + Copy> UndirectedGraphTrait<'a, T> for UndirectedGraph<'a, T> {
+impl<'a, T: Eq + Hash + Copy + PartialOrd> UndirectedGraphTrait<'a, T> for UndirectedGraph<'a, T> {
     fn add_edge(&mut self, a: T, b: T) {
         self.entry(a).or_default().insert(b);
         self.entry(b).or_default().insert(a);
@@ -47,6 +50,22 @@ impl<'a, T: Eq + Hash + Copy> UndirectedGraphTrait<'a, T> for UndirectedGraph<'a
         if neighbors.len() == 0 {
             self.remove(&a);
         }
+    }
+
+    // TODO: Too lazy right now to implement as an iterator. I really can't wait
+    // TODO: for generators
+    fn all_edges(&self) -> Vec<(&T, &T)> {
+        let mut edges = vec![];
+
+        for (a, bs) in self {
+            for b in bs {
+                if a <= b {
+                    edges.push((a, b));
+                }
+            }
+        }
+
+        edges
     }
 }
 
@@ -108,7 +127,7 @@ fn parse_graph(text: &str) -> UndirectedGraph {
     graph
 }
 
-fn part1_attempt_1(text: &str) -> bool {
+fn part1_statistical(text: &str) -> bool {
     // TODO: My original thought process. I now think that brute force would
     // have worked fine (since I only actually have 1527 vertices), but I only
     // know once I test it (and I will do that).
@@ -168,7 +187,7 @@ fn part1_attempt_1(text: &str) -> bool {
     most_traveled.reverse();
     let most_traveled = most_traveled
         .into_iter()
-        .take(3)
+        // .take(3)
         .map(|(pair, _)| pair.map(|s| s.to_owned()))
         .collect_vec();
 
@@ -190,28 +209,65 @@ fn part1_attempt_1(text: &str) -> bool {
     false
 }
 
-// TODO: Try this alongside standard brute-force
-// struct CombinationsPreferFirst<I> {
-//     inner: I,
-//     k: usize,
-//     max: usize,
-// }
+fn part1_brute_force(text: &str) -> bool {
+    let graph = parse_graph(text);
+    let edges = graph.all_edges();
 
-// fn combinations_prefer_first<I: Clone + Iterator>(inner: I, k: usize) -> CombinationsPreferFirst<I> {
-//     CombinationsPreferFirst {
-//         inner,
-//         k,
-//         max: k,
-//     }
-// }
+    let original_len = graph.len();
+    for (i, triplet) in edges.iter().combinations(3).enumerate() {
+        if i % 100 == 0 {
+            println!("inner_run {:?}", (i));
+        }
+        let mut graph = graph.clone();
+        for (i, (a, b)) in triplet.iter().enumerate() {
+            // assert_eq!(connected_to(&graph, &a), original_len);
+            graph.remove_edge(a, b);
+            if i == 2 {
+                let first_half = connected_to(&graph, &a);
+                if first_half < original_len {
+                    assert_eq!(first_half + connected_to(&graph, &b), original_len);
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
 
-// impl<I: Clone + Iterator> Iterator for CombinationsPreferFirst<I> {
-//     type Item = I::Item;
+struct CombinationsPreferFirst<V> {
+    reference: Vec<V>,
+    indices: Combinations<Range<usize>>,
+}
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!()
-//     }
-// }
+fn combinations_prefer_first<V>(of: Vec<V>, k: usize) -> CombinationsPreferFirst<V> {
+    let len = of.len();
+    CombinationsPreferFirst {
+        reference: of,
+        indices: (0..len).combinations(len - k),
+    }
+}
+
+impl<V: Copy + Debug> Iterator for CombinationsPreferFirst<V> {
+    type Item = Vec<V>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let indices = self.indices.next()?;
+        let tmp = self
+            .reference
+            .iter()
+            .enumerate()
+            .filter_map(|(i, x)| {
+                if indices.contains(&(self.reference.len() - i - 1)) {
+                    None
+                } else {
+                    Some(*x)
+                }
+            })
+            .collect_vec();
+        // println!("{:?}", (indices, &tmp));
+        return Some(tmp);
+    }
+}
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day25.txt")?;
@@ -228,20 +284,21 @@ fn main() -> std::io::Result<()> {
     // 1956/2000 successful runs after 732.749 seconds (~467 seconds for 1000
     // runs).
     //
-    // I think it's guaranteed to find a success if I iterate through the whole
-    // thing, but that's no different than randomly guessing unless I can show
-    // preferring most traveled benefits the search. Problem is,
-    // Itertools::combinations doesn't prefer earlier elements, so I have to
-    // implement something myself...
+    // Looking at every possible triplet while preferring the most traveled
+    // after 100 random walks had 2000/2000 successful runs after 735.559
+    // seconds
+    //
+    // Brute force didn't even complete once after an hour, which makes sense
+    // since it's `O(edges.len() ** 3)`.
     let now = Instant::now();
     let mut success = 0;
-    let runs = 2000;
+    let runs = 100;
     for run in 0..runs {
-        if run % 100 == 0 {
+        if true {
             println!("status: {run}");
         }
 
-        if part1_attempt_1(&text) {
+        if part1_brute_force(&text) {
             success += 1;
         } else {
             println!("failure on run={}", run);
@@ -261,9 +318,13 @@ mod tests {
     use std::collections::HashSet;
 
     use indoc::indoc;
+    use itertools::Itertools;
     use rstest::rstest;
 
-    use crate::{breadth_first_connect, connected_to, parse_graph, UndirectedGraph};
+    use crate::{
+        breadth_first_connect, combinations_prefer_first, connected_to, parse_graph,
+        UndirectedGraph,
+    };
 
     #[test]
     fn test_parse_graph() {
@@ -321,5 +382,36 @@ mod tests {
             assert_eq!(connected_to(graph, "a1"), 4);
             assert_eq!(connected_to(graph, "a2"), 4);
         }
+    }
+
+    #[test]
+    fn test_combinations_prefer_first() {
+        let tmp = combinations_prefer_first(Vec::from_iter("abcdef".chars()), 3).collect_vec();
+        assert_eq!(
+            &tmp,
+            &[
+                //              abcdef
+                Vec::from_iter("abc   ".replace(" ", "").chars()),
+                Vec::from_iter("ab d  ".replace(" ", "").chars()),
+                Vec::from_iter("a cd  ".replace(" ", "").chars()),
+                Vec::from_iter(" bcd  ".replace(" ", "").chars()),
+                Vec::from_iter("ab  e ".replace(" ", "").chars()),
+                Vec::from_iter("a c e ".replace(" ", "").chars()),
+                Vec::from_iter(" bc e ".replace(" ", "").chars()),
+                Vec::from_iter("a  de ".replace(" ", "").chars()),
+                Vec::from_iter(" b de ".replace(" ", "").chars()),
+                Vec::from_iter("  cde ".replace(" ", "").chars()),
+                Vec::from_iter("ab   f".replace(" ", "").chars()),
+                Vec::from_iter("a c  f".replace(" ", "").chars()),
+                Vec::from_iter(" bc  f".replace(" ", "").chars()),
+                Vec::from_iter("a  d f".replace(" ", "").chars()),
+                Vec::from_iter(" b d f".replace(" ", "").chars()),
+                Vec::from_iter("  cd f".replace(" ", "").chars()),
+                Vec::from_iter("a   ef".replace(" ", "").chars()),
+                Vec::from_iter(" b  ef".replace(" ", "").chars()),
+                Vec::from_iter("  c ef".replace(" ", "").chars()),
+                Vec::from_iter("   def".replace(" ", "").chars()),
+            ],
+        )
     }
 }
