@@ -1,4 +1,6 @@
+use itertools::Itertools;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::ops::Range;
 
 fn parse_int(x: &str) -> Option<usize> {
@@ -9,40 +11,10 @@ fn parse_int(x: &str) -> Option<usize> {
     }
 }
 
-struct OverlappingMatches<T> {
-    ours: Range<T>,
-    sub_range: Range<T>,
-}
-
-struct OverlapPair<T> {
-    does: Range<T>,
-    not: Range<T>,
-}
-
-enum CheckInterleave<T> {
-    OverlapsFirst {
-        overlap: Vec<Range<T>>,
-        none: Vec<Range<T>>,
-    },
-    OverlapsSecond {
-        overlap: Vec<Range<T>>,
-        none: Vec<Range<T>>,
-    },
-}
-use CheckInterleave as CI;
-
-// enum CheckInterleave{
-//     NoOverlap(Range<T>),
-//     StartOverlaps(Range<T>, Vec<OverlapPair<T>>, Option<Range<T>>),
-//     EndOverlaps(Option<Range<T>>, Vec<OverlapPair<T>>, Range<T>),
-// }
-
 trait RangeMath<T> {
     fn sort_ranges(&mut self);
     fn find_range(&self, range: &Range<T>) -> Range<usize>;
     fn insert_range(&mut self, new_range: Range<T>);
-    // fn check_interleave(&self, new_range: Range<T>) -> CheckInterleave<T>;
-    // fn overlapping_matches(&self, range: Range<T>) -> Vec<OverlappingMatches<T>>;
 }
 
 impl<T: Ord + Copy> RangeMath<T> for Vec<Range<T>> {
@@ -109,7 +81,6 @@ impl<T: Ord + Copy> RangeMath<T> for Vec<Range<T>> {
 }
 
 fn main() -> std::io::Result<()> {
-    // println!("{:?}", std::env::current_dir());
     let text = std::fs::read_to_string("./assets/day5.txt")?;
     let mut lines = text.lines().peekable();
     let mut current = lines.next().unwrap()[7..]
@@ -119,20 +90,23 @@ fn main() -> std::io::Result<()> {
         .windows(2)
         .step_by(2)
         .map(|window| {
-            if let [end, start] = window {
-                return *start..*end;
+            if let [start, count] = window {
+                return *start..start + count;
             } else {
                 panic!("Non-pair of windows");
             }
         })
-        .collect::<Vec<_>>();
+        .fold(vec![], |mut acc, range| {
+            acc.insert_range(range);
+            acc
+        });
 
     lines.next(); // Skip empty line
 
     while lines.peek() != None {
         lines.next(); // Skip header
 
-        let mut maps = vec![];
+        let mut maps = HashMap::new();
         loop {
             let triple = match lines.next() {
                 None => break,
@@ -144,91 +118,54 @@ fn main() -> std::io::Result<()> {
             }
 
             if let [dest_start, source_start, count] = triple[..3] {
-                maps.push((source_start, dest_start, count));
+                maps.insert(
+                    source_start..source_start + count,
+                    dest_start..dest_start + count,
+                );
             } else {
                 panic!("Expected a number triple");
             }
         }
 
-        let len = current.len();
-        let mut maps_domain = maps
-            .iter()
-            .map(|(source, _, count)| source.to_owned()..source + count)
-            .collect::<Vec<_>>();
+        let mut maps_domain = maps.keys().map(|range| range.to_owned()).collect_vec();
         maps_domain.sort_ranges();
 
         current = current
             .into_iter()
-            .flat_map(|seeds| {
+            .flat_map(|mut seeds| {
+                let original = seeds.to_owned();
+
                 let mut outputs = vec![];
-                let mut seeds = seeds;
                 for i in maps_domain.find_range(&seeds) {
                     let range = &maps_domain[i];
                     if seeds.start < range.start {
                         outputs.push(seeds.start..range.start);
                     }
-                    let (dest, count) = maps
-                        .iter()
-                        .find_map(|(source, dest, count)| {
-                            if *source == range.start && source + count == range.end {
-                                Some((dest, count))
-                            } else {
-                                None
-                            }
-                        })
-                        .unwrap();
-                    outputs.push(
-                        std::cmp::max(*dest, seeds.start + dest - range.start)
-                            ..std::cmp::min(dest + count, seeds.end + dest - range.start),
-                    );
+                    let dest = maps.get(range).unwrap().to_owned();
+                    let new = std::cmp::max(dest.start, seeds.start + dest.start - range.start)
+                        ..std::cmp::min(dest.end, seeds.end + dest.end - range.end);
+                    outputs.push(new);
                     seeds = range.end..seeds.end;
                 }
                 if seeds.len() > 0 {
                     outputs.push(seeds);
                 }
-                return outputs;
-                // let x = ;
 
-                let mut inputs = vec![seeds.to_owned()];
-                let mut outputs = vec![];
+                assert_eq!(
+                    original.len(),
+                    outputs.iter().map(|range| range.len()).sum()
+                );
 
-                // Some inputs don't fully overlap with the source => destination map, so we chop them up into pieces that do.
-                while let Some(input) = inputs.pop() {
-                    // Too lazy to care about copying a few numbers
-                    for (source, dest, count) in maps.to_owned().into_iter() {
-                        if source <= input.start && input.end <= source + count {
-                            outputs.push(input.start + dest - source..input.end + dest - source);
-                        } else if input.start < source && source + count < input.end {
-                            outputs.push(source..source + count);
-                            inputs.push(input.start..source);
-                            inputs.push(source + count..input.end);
-                        } else if input.start < source && source < input.end {
-                            outputs.push(source..input.end);
-                            inputs.push(input.start..source - 1);
-                        } else if input.start <= source + count && source + count < input.end - 1 {
-                            outputs.push(input.start..source + count);
-                            inputs.push(source + count + 1..input.end);
-                        } else {
-                            continue;
-                        }
-                        break;
-                    }
-
-                    // If the input doesn't overlap with any maps, it's added as is.
-                    if input.len() > 0 {
-                        outputs.push(input);
-                    }
-
-                    println!("{:?}", outputs);
-                }
                 return outputs;
             })
-            .collect();
+            .fold(vec![], |mut acc, range| {
+                acc.insert_range(range);
+                acc
+            });
+        current.sort_ranges();
         println!("{}", current.len());
-        // break;
     }
 
-    // 35355313 too high
     println!(
         "lowest final value = {}",
         current.iter().map(|range| range.start).min().unwrap()
