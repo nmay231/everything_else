@@ -1,4 +1,9 @@
 use std::cmp::Ordering;
+use std::fmt::Debug;
+
+use itertools::Itertools;
+use num_integer::{ExtendedGcd, Integer};
+use num_traits::Euclid;
 
 /// (row, column)
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
@@ -104,5 +109,76 @@ impl Direc {
             Direc::East => a.1.cmp(&b.1),
             Direc::West => b.1.cmp(&a.1),
         }
+    }
+}
+
+pub fn chinese_remainder<T: Integer + Clone + Debug + Euclid>(
+    remainder_modulus: Vec<(T, T)>,
+    cast: impl Fn(isize) -> T,
+) -> T {
+    // println!("{:?}", (remainder_modulus));
+    let zero = cast(0);
+    let one = cast(1);
+    for (a, b) in remainder_modulus.iter().tuple_combinations() {
+        // moduli must be coprime
+        let gcd = &a.1.gcd(&b.1);
+        assert_eq!(
+            gcd,
+            &one,
+            "gcd({:?}, {:?})={gcd:?} ({gcd:?} * {:?}, {gcd:?} * {:?})",
+            &a.1,
+            &b.1,
+            a.1.to_owned() / gcd.to_owned(),
+            b.1.to_owned() / gcd.to_owned(),
+        );
+
+        // I think the remainder has to be in its smallest form
+        assert!(&zero < &a.0 && &a.0 < &a.1);
+        assert!(&zero < &b.0 && &b.0 < &b.1);
+    }
+
+    let mut x = zero.clone();
+    let cap_n = remainder_modulus
+        .iter()
+        .fold(one.to_owned(), |acc, (_, n_i)| acc * n_i.to_owned());
+    for (a_i, n_i) in remainder_modulus {
+        let y_i = cap_n.to_owned() / n_i.to_owned();
+        let ExtendedGcd { x: z_i, .. } = y_i.extended_gcd(&n_i);
+        // let z_i = z_i.rem_euclid(n_i);
+        // + Mul<&T, Output = T>
+        // let test = z_i * y_i;
+        // test.e
+        assert_eq!(&(z_i.to_owned() * y_i.to_owned()).rem_euclid(&n_i), &one);
+
+        x = x + a_i * y_i * z_i;
+        // x = x + a_i.to_owned() * y_i.to_owned() * z_i.to_owned();
+        // println!("{:?}", (a_i, y_i, z_i, a_i * y_i * z_i));
+    }
+    // 0.rem_
+    let x = x.rem_euclid(&cap_n);
+    assert!(x >= zero);
+    x
+}
+
+#[cfg(test)]
+mod test_chinese_remainder {
+    use crate::chinese_remainder;
+
+    #[test]
+    fn example1() {
+        let actual = chinese_remainder(vec![(1, 3), (4, 5), (6, 7)], |x| x);
+        assert_eq!(actual, 34);
+    }
+
+    #[test]
+    fn example2() {
+        let actual = chinese_remainder(vec![(2, 3), (3, 8)], |x| x);
+        assert_eq!(actual, 11);
+    }
+
+    #[test]
+    fn single_entry() {
+        let actual = chinese_remainder(vec![(2, 3)], |x| x);
+        assert_eq!(actual, 2);
     }
 }
