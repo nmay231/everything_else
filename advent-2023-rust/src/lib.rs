@@ -53,6 +53,45 @@ impl UsizePoint {
         }
     }
 
+    // TODO: Don't think I really need `next_point_steps_wrap()`
+    pub fn next_point_wrap(&self, direc: &Direc, grid_size: &UsizePoint) -> UsizePoint {
+        match direc {
+            Direc::North => {
+                if self.0 > 0 {
+                    UsizePoint(self.0 - 1, self.1)
+                } else {
+                    UsizePoint(grid_size.0 - 1, self.1)
+                }
+            }
+            Direc::East => {
+                if self.1 + 1 < grid_size.1 {
+                    UsizePoint(self.0, self.1 + 1)
+                } else {
+                    UsizePoint(self.0, 0)
+                }
+            }
+            Direc::South => {
+                if self.0 + 1 < grid_size.0 {
+                    UsizePoint(self.0 + 1, self.1)
+                } else {
+                    UsizePoint(0, self.1)
+                }
+            }
+            Direc::West => {
+                if self.1 > 0 {
+                    UsizePoint(self.0, self.1 - 1)
+                } else {
+                    UsizePoint(self.0, grid_size.1 - 1)
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_on_edge(&self, grid_size: &UsizePoint) -> bool {
+        self.0 == 0 || self.1 == 0 || self.0 + 1 == grid_size.0 || self.1 + 1 == grid_size.1
+    }
+
     #[inline(always)]
     pub fn as_index(&self, grid_size: &UsizePoint) -> usize {
         grid_size.1 * self.0 + self.1
@@ -180,5 +219,35 @@ mod test_chinese_remainder {
     fn single_entry() {
         let actual = chinese_remainder(vec![(2, 3)], |x| x);
         assert_eq!(actual, 2);
+    }
+}
+
+pub trait Zipper: Sized {
+    type Target;
+    type Index;
+
+    /// Get the child at index as a zipper, or return the current zipper if index
+    /// does not exist
+    fn child(self, index: Self::Index) -> Result<Self, Self>;
+
+    /// Get the parent as a zipper, or return the current zipper if `self` is
+    /// the root
+    fn parent(self) -> Result<Self, Self>;
+
+    /// Convert the target type into a zipper view
+    fn from(target: Self::Target) -> Self;
+
+    /// Extract the current target type consuming `self`. Use `.unzip()` if you
+    /// need to get the target type of the root.
+    fn unwrap_target(self) -> Self::Target;
+
+    /// Convert a zipper view into the target type
+    fn unzip(mut self) -> Self::Target {
+        loop {
+            match self.parent() {
+                Ok(parent) => self = parent,
+                Err(root) => return root.unwrap_target(),
+            }
+        }
     }
 }
