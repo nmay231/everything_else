@@ -235,7 +235,7 @@ pub trait Zipper: Sized {
     fn parent(self) -> Result<Self, Self>;
 
     /// Convert the target type into a zipper view
-    fn from(target: Self::Target) -> Self;
+    fn new(target: Self::Target) -> Self;
 
     /// Extract the current target type consuming `self`. Use `.unzip()` if you
     /// need to get the target type of the root.

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use advent_2023_rust::{Direc, UsizePoint, Zipper};
+use indoc::indoc;
 use itertools::Itertools;
 
 type Output = usize;
@@ -77,7 +78,7 @@ impl Zipper for NewEntriesMapZipper {
         }
     }
 
-    fn from(target: Self::Target) -> Self {
+    fn new(target: Self::Target) -> Self {
         NewEntriesMapZipper(vec![], target)
     }
 
@@ -122,19 +123,29 @@ fn simulate_grid(
     max_steps: usize,
 ) -> Vec<(usize, UsizePoint, Direc)> {
     assert_eq!(entries[0].0, 0);
-    let mut points = HashSet::new();
-    points.insert((entries[0].1, false));
+    let mut points = HashMap::new();
+    points.insert(entries[0].1, false);
     let mut visited = HashSet::new();
 
     let mut boundaries = vec![];
     let mut even = 0;
     let mut odd = 0;
 
+    // TODO: I am trying to fix this so that each travel along the edge is
+    // visited once instead of multiple times like it is now. This is so that I
+    // can check if most times I enter the next subgrid on the corner and every
+    // other time is on one point of the edge. If that's the case, it greatly
+    // simplifies my problem. I don't think it is in the example, but I do with
+    // the actual input. But we'll see.
+
     for step in 0..max_steps {
-        points = points
-            .iter()
+        let iter = points
+            .into_iter()
             .cartesian_product(Direc::POWERS_OF_I.iter())
             .flat_map(|((point, hugging_edge), direc)| {
+                if point.is_on_edge(grid_size) && !hugging_edge {
+                    println!("{:?}", (&point, direc));
+                }
                 point
                     .next_point(direc, grid_size)
                     .or_else(|| {
@@ -158,8 +169,13 @@ fn simulate_grid(
                             None
                         }
                     })
-            })
-            .collect();
+            });
+        points = HashMap::new();
+        for (point, hugging_edge) in iter {
+            // Prefer hugging edge instead of not
+            *points.entry(point).or_insert(false) |= hugging_edge;
+        }
+        // .collect();
 
         if step % 2 == 0 {
             even += points.len();
@@ -174,15 +190,30 @@ fn simulate_grid(
 /// walked in (ignoring useless walk-ins; places you would have already walked).
 /// So I have a grid square 26501365/131 long and wide and every cell is the
 /// input grid, a sub-grid. Then I have a map for when a grid is entered by it's
-/// neighbors (only checking the boundaries). So I don't cache computation by the
-/// exact form of its 8 neighbors, but by when the neighbors enter it.
+/// neighbors (only checking the boundaries). So I don't cache computation by
+/// the exact form of its 8 neighbors, but by when the neighbors enter it.
 ///
 /// Luckily, I think this is guaranteed to work since there is a border of `.`
 /// meaning if you enter subgrid A, then subgrid B from A, I never have to worry
 /// about going from B to A since it will always be faster to go to it from A
 /// (this is not guaranteed in general).
 ///
-/// Definitely have to test with the small grid first to see if it's feasible.
+/// Revisiting this, since the outline of the grid is empty space ('.'), when
+/// you enter a subgrid by the corner, you always visit the next subgrid's by
+/// the corner since there is no faster path than skirting around the edges. So,
+/// the way to solve this is to keep track of the four cardinal directions from
+/// the starting grid (since they enter on the sides), track how many grids are
+/// fully subsumed by diagonal traversal and what parity they are, and finally
+/// the progress into the partially visited grids in the big diamond around the
+/// center.
+///
+/// For the fully subsumed grids, I just need to know the time it takes to get
+/// to each corner, then how many grids are fully consumed, which is the
+/// triangle number of `(steps_left_after_corner - 1) / (grid_x + grid_y - 1)`.
+/// To get the grids on the big diamond (excluding the cardinal corners), you
+/// find the remainder of that division and travel that far into the subgrid,
+/// then times by the above number (since each subgrid is the same at that
+/// point).
 
 fn part2(text: &str, n_steps: usize) -> Output {
     let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
@@ -201,10 +232,6 @@ fn part2(text: &str, n_steps: usize) -> Output {
         (grid_size.1 / n_steps) * 2 + 1,
     );
     let mut super_grid = vec![Some(vec![]); super_grid_size.0 * super_grid_size.1];
-    // let mut next_sub_grids = vec![(
-    //     0_usize,
-    //     UsizePoint(super_grid_size.0 / 2, super_grid_size.1 / 2),
-    // )];
     let super_start = UsizePoint(super_grid_size.0 / 2, super_grid_size.1 / 2);
     super_grid[super_start.as_index(super_grid_size)]
         .as_mut()
@@ -214,10 +241,10 @@ fn part2(text: &str, n_steps: usize) -> Output {
     next_subgrid.insert(super_start.to_owned(), 0_usize);
 
     let mut new_entries = NewEntriesMap::new();
-    new_entries.insert(
-        super_start.to_owned(),
-        NewEntries(0, vec![(0, subgrid_start)], NewEntriesMap::new()),
-    );
+    // new_entries.insert(
+    //     super_start.to_owned(),
+    //     NewEntries(0, vec![(0, subgrid_start)], NewEntriesMap::new()),
+    // );
 
     while next_subgrid.len() > 0 {
         let (subgrid_pos, entry_step) = next_subgrid
@@ -229,14 +256,30 @@ fn part2(text: &str, n_steps: usize) -> Output {
         let mut entries = subgrid.expect("Revisiting a subgrid that was already accounted for");
         entries.sort_by_key(|x| x.0);
 
+        let mut zipper = NewEntriesMapZipper::new(new_entries);
+        let mut step_point: Option<()> = None;
         // We see if we already calculated the path for a similar set of entries
-        for (step, point) in entries {
-            // TODO: Continue here. First I should not use new_entries, then I
-            // should use it and figure out how since it's a bit convoluted.
-            // Then I need to update simulate_grid to track even/odd (only
-            // necessary each time since the fringes of the exploration will
-            // only fill part of the grid; but too complicated to optimize that).
-            // if new_entries.
+        for (step, point) in entries.iter() {
+            match zipper.1.get(point) {
+                Some(entry) => {
+                    // if
+                    // entry.0
+                    todo!()
+                }
+                None => todo!(),
+            }
+            // if let Some(x) = zipper.1.get(point) {
+            //     x
+            // }
+            // match zipper.child(point) {
+            //     Ok(child) => zipper = child,
+            //     Err(mut unchanged) => {
+            //         // unchanged.1.insert(k, v);
+            //         zipper = unchanged;
+            //         step_point = Some((step, point));
+            //         break;
+            //     }
+            // }
         }
 
         let exits = simulate_grid(&grid, grid_size, entries, n_steps - *entry_step);
@@ -255,6 +298,7 @@ fn part2(text: &str, n_steps: usize) -> Output {
             }
         }
         // next_sub_grid.ex
+        new_entries = zipper.unzip();
     }
     0
 }
@@ -263,7 +307,25 @@ fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day21.txt")?;
 
     println!("part 1 result = {:?}", part1(&text, 64));
-    println!("part 2 result = {:?}", part2(&text, 6));
+    // println!("part 2 result = {:?}", part2(&text, 6));
+    let text = indoc! {"
+    ...........
+    .....###.#.
+    .###.##..#.
+    ..#.#...#..
+    ....#.#....
+    .##..S####.
+    .##..#...#.
+    .......##..
+    .##.#.####.
+    .##..##.##.
+    ..........."};
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
+    let mut grid = text.replace('\n', "").chars().collect_vec();
+    println!(
+        "{:?}",
+        (simulate_grid(&grid, grid_size, vec![(0, UsizePoint(5, 5))], 50))
+    );
 
     Ok(())
 }
