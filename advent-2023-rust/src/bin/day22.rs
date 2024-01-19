@@ -1,6 +1,9 @@
+#![feature(cmp_minmax)]
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::str::FromStr;
+
+use indoc::indoc;
 
 type Output = usize;
 
@@ -107,7 +110,10 @@ impl Ord for PointPointLine {
     }
 }
 
-fn part1(text: &str) -> Output {
+/// Returns the dependencies of the bricks laying on each other where zero `0`
+/// is the ground. The second usize is the largest label of a brick, or
+/// similarly the number of bricks (since they count `1..=bricks.len()`).
+fn build_dependencies(text: &str) -> (HashMap<usize, HashSet<usize>>, usize) {
     let mut bricks: Vec<PointPointLine> = vec![];
     for line in text.lines() {
         let (a, b) = line.split_once('~').unwrap();
@@ -116,18 +122,8 @@ fn part1(text: &str) -> Output {
 
         assert!(a.can_see_linearly(&b));
 
-        // TODO: Need to see if I can make the following work instead of matching on .cmp()
-        // let mut pair = [&a, &b];
-        // pair.sort_unstable();
-        // bricks.push((*pair[0], *pair[1]));
-
-        match a.cmp(&b) {
-            std::cmp::Ordering::Greater => bricks.push((b, a).try_into().unwrap()),
-            // While Ordering is unlikely to add/remove variants, it's good practice to explicitly list all variants for ones that might
-            std::cmp::Ordering::Equal | std::cmp::Ordering::Less => {
-                bricks.push((a, b).try_into().unwrap())
-            }
-        }
+        let [a, b] = std::cmp::minmax(a, b);
+        bricks.push((a, b).try_into().unwrap());
     }
 
     bricks.sort();
@@ -185,6 +181,12 @@ fn part1(text: &str) -> Output {
         // println!("{:?}", (dependencies.get(&label), &dependencies));
     }
 
+    (dependencies, bricks.len())
+}
+
+fn part1(text: &str) -> Output {
+    let (dependencies, bricks_len) = build_dependencies(text);
+
     let mut king_pins = dependencies
         .values()
         .filter_map(|underneath| {
@@ -193,17 +195,72 @@ fn part1(text: &str) -> Output {
         .collect::<HashSet<_>>();
 
     king_pins.remove(&0); // The ground doesn't count
-    bricks.len() - king_pins.len()
+    bricks_len - king_pins.len()
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part2(text: &str) -> Output {
+    let (supported_on, bricks_len) = build_dependencies(text);
+
+    let mut supported_by = HashMap::new();
+    for (above, pump_the_bellows) in supported_on.iter() {
+        for below in pump_the_bellows {
+            // tbh, this joke doesn't make much sense
+            supported_by
+                .entry(*below)
+                .or_insert(HashSet::new())
+                .insert(*above);
+        }
+    }
+
+    let mut result = 0;
+    for to_remove in 1..=bricks_len {
+        let mut removed = HashSet::new();
+        removed.insert(to_remove);
+
+        // One of the few valid uses of a "goto"
+        'the_chain_reaction: loop {
+            for brick in removed.iter() {
+                let Some(all_supported) = supported_by.get(brick) else {
+                    continue;
+                };
+
+                for supported in all_supported.difference(&removed) {
+                    if supported_on
+                        .get(supported)
+                        .unwrap()
+                        .difference(&removed)
+                        .count()
+                        == 0
+                    {
+                        removed.insert(*supported);
+                        continue 'the_chain_reaction;
+                    }
+                }
+            }
+
+            break;
+        }
+
+        result += removed.len() - 1;
+    }
+
+    result
 }
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day22.txt")?;
 
     println!("part 1 result = {:?}", part1(&text));
+    println!("part 2 result = {:?}", part2(&text));
+
+    let text = indoc! {"
+    1,0,1~1,2,1
+    0,0,2~2,0,2
+    0,2,3~2,2,3
+    0,0,4~0,2,4
+    2,0,5~2,2,5
+    0,1,6~2,1,6
+    1,1,8~1,1,9"};
     println!("part 2 result = {:?}", part2(&text));
 
     Ok(())
