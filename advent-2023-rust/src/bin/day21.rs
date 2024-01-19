@@ -1,8 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use advent_2023_rust::{Direc, UsizePoint, Zipper};
 use indoc::indoc;
 use itertools::Itertools;
+use num_integer::Integer;
 
 type Output = usize;
 
@@ -40,9 +41,53 @@ fn part1(text: &str, steps: usize) -> Output {
         }
     }
 
-    // grid_size.debug_grid(&grid);
+    if steps == 100 && false {
+        let n_repeats = grid_size.0 / 11;
+        // grid_size.debug_grid(&grid);
+        for (i, row) in grid.chunks_exact(11).enumerate() {
+            let i = i + 1;
+            print!("{}", String::from_iter(row));
+            if i % (11 * n_repeats) == 0 {
+                println!("\n");
+            } else if i % n_repeats == 0 {
+                println!();
+            } else {
+                print!(" ");
+            }
+        }
+        println!();
+    }
 
     grid.iter().filter(|char| char == &&'O').count()
+}
+
+fn _part2_brute_force(text: &str, n_steps: usize) -> Output {
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
+
+    let tmp_grid = text.replace('\n', "").chars().collect_vec();
+    let padding = n_steps.div_ceil(text.lines().count());
+    let repeat = 2 * padding + 1;
+    let top_row = text
+        .replace('S', "T")
+        .lines()
+        .map(|row| row.repeat(repeat))
+        .join("\n");
+    let text = [top_row].iter().cycle().take(repeat).join("\n");
+    let text = text.replacen('T', "t", padding * repeat + padding);
+    let text = text.replacen('T', "S", 1);
+    let text = text.replace(['T', 't'], ".");
+    assert_eq!(text.chars().filter(|c| c == &'S').count(), 1);
+    // println!("{}", text);
+    assert!(text.find(|c| !['.', '#', 'S', '\n'].contains(&c)).is_none());
+
+    part1(&text, n_steps)
+
+    // assert_eq!(
+    //     grid_size.0, grid_size.1,
+    //     "Handling parity with rectangular grids is a pain"
+    // );
+
+    // tmp_grid[start.as_index(grid_size)] = '.';
 }
 
 struct NewEntries(usize, Vec<(usize, UsizePoint)>, NewEntriesMap);
@@ -143,9 +188,9 @@ fn simulate_grid(
             .into_iter()
             .cartesian_product(Direc::POWERS_OF_I.iter())
             .flat_map(|((point, hugging_edge), direc)| {
-                if point.is_on_edge(grid_size) && !hugging_edge {
-                    println!("{:?}", (&point, direc));
-                }
+                // if point.is_on_edge(grid_size) && !hugging_edge {
+                //     println!("{:?}", (&point, direc));
+                // }
                 point
                     .next_point(direc, grid_size)
                     .or_else(|| {
@@ -215,99 +260,393 @@ fn simulate_grid(
 /// then times by the above number (since each subgrid is the same at that
 /// point).
 
+fn grid_replace(grid: &mut [char], from: char, to: char) {
+    for c in grid.iter_mut() {
+        if c == &from {
+            *c = to;
+        }
+    }
+}
+
+/// Returns (even, odd) counts of visited cells == 'O'
+fn count_visits(grid: &[char], grid_size: &UsizePoint) -> (usize, usize) {
+    grid.iter()
+        .enumerate()
+        .fold((0, 0), |(even, odd), (index, c)| {
+            let point = UsizePoint::from_index(grid_size, index);
+            if c == &'O' {
+                match (point.0 + point.1).is_even() {
+                    true => (even + 1, odd),
+                    false => (even, odd + 1),
+                }
+            } else {
+                (even, odd)
+            }
+        })
+}
+
+fn find_exits(
+    grid: &mut [char],
+    grid_size: &UsizePoint,
+    n_steps: usize,
+    mut points: Vec<(usize, UsizePoint)>,
+) -> (Vec<Vec<(usize, UsizePoint)>>, HashMap<UsizePoint, usize>) {
+    let mut boundary_entries = vec![vec![]; 4];
+    let mut diagonal_entries = [
+        UsizePoint(0, 0),
+        UsizePoint(0, grid_size.1 - 1),
+        UsizePoint(grid_size.0 - 1, 0),
+        UsizePoint(grid_size.0 - 1, grid_size.1 - 1),
+    ]
+    .into_iter()
+    .map(|key| (key, usize::MAX))
+    .collect::<HashMap<_, _>>();
+
+    // let mut points = vec![(0_usize, start)];
+    points.sort_by_key(|(step, _)| *step);
+    // println!("{:?}", (expected_min, &points));
+    let mut points = VecDeque::from_iter(points);
+
+    loop {
+        let len = points.len();
+        let expected_min = points[0].0;
+
+        for _ in 0..len {
+            let Some((step, point)) = points.pop_front() else {
+                unreachable!();
+            };
+
+            // println!("{:?}", (expected_min, step, &point));
+            if grid[point.as_index(grid_size)] != '.' || step > n_steps {
+                continue;
+            } else if step != expected_min {
+                points.push_back((step, point));
+                continue;
+            }
+
+            // We only expect to increment by one
+            // assert!(step >= expected_min);
+            // expected_min = step;
+            for direc in Direc::POWERS_OF_I {
+                match point.next_point(&direc, grid_size) {
+                    None => boundary_entries[direc.to_power_of_i()]
+                        .push((step + 1, point.next_point_wrap(&direc, grid_size))),
+                    Some(next_point) => points.push_back((step + 1, next_point)),
+                }
+
+                if let Some(steps_to) = diagonal_entries.get_mut(&point) {
+                    *steps_to = std::cmp::min(*steps_to, step);
+                }
+            }
+
+            grid[point.as_index(grid_size)] = 'O';
+        }
+
+        if points.len() == 0 {
+            return (boundary_entries, diagonal_entries);
+        }
+        assert_eq!(points[0].0, expected_min + 1);
+    }
+    // (boundary_entries, diagonal_entries)
+}
+
 fn part2(text: &str, n_steps: usize) -> Output {
+    // Parts that we count individually
+    //       1
+    //      313
+    //     33133
+    //    3321233
+    //   332212233
+    //  33222122233
+    // 1111110111111
+    //  33222122233
+    //   332212233
+    //    3321233
+    //     33133
+    //      313
+    //       1
     let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
+    assert_eq!(
+        grid_size.0, grid_size.1,
+        "Handling parity with rectangular grids is a pain"
+    );
+
     let mut grid = text.replace('\n', "").chars().collect_vec();
-    let subgrid_start = UsizePoint::from_index(
+    let start = UsizePoint::from_index(
         grid_size,
         grid.iter()
             .enumerate()
             .find_map(|(i, char)| (*char == 'S').then_some(i))
             .unwrap(),
     );
-    grid[subgrid_start.as_index(grid_size)] = '.';
+    grid[start.as_index(grid_size)] = '.';
+    // Part 0
+    let (boundary_entries, diagonal_entries) =
+        find_exits(&mut grid, grid_size, n_steps, vec![(0_usize, start)]);
 
-    let super_grid_size = &UsizePoint(
-        (grid_size.0 / n_steps) * 2 + 1,
-        (grid_size.1 / n_steps) * 2 + 1,
-    );
-    let mut super_grid = vec![Some(vec![]); super_grid_size.0 * super_grid_size.1];
-    let super_start = UsizePoint(super_grid_size.0 / 2, super_grid_size.1 / 2);
-    super_grid[super_start.as_index(super_grid_size)]
-        .as_mut()
-        .unwrap()
-        .push((0_usize, subgrid_start));
-    let mut next_subgrid = HashMap::new();
-    next_subgrid.insert(super_start.to_owned(), 0_usize);
+    // Technically not the max if part of the grid is missed, but then it
+    // doesn't need to be accurate.
+    let (max_even, max_odd) = count_visits(&grid, grid_size);
+    grid_replace(&mut grid, 'O', '.');
 
-    let mut new_entries = NewEntriesMap::new();
-    // new_entries.insert(
-    //     super_start.to_owned(),
-    //     NewEntries(0, vec![(0, subgrid_start)], NewEntriesMap::new()),
-    // );
+    // (step, "entry into grid", "number of these grids", ("# cells an even step away from origin",
+    // "ditto, but odd"))
+    let mut entries_to_grids = vec![(0, start, 1, (max_even, max_odd))];
+    // println!("part0: {:?}", (entries_to_grids));
+    // let mut saved = entries_to_grids.clone();
 
-    while next_subgrid.len() > 0 {
-        let (subgrid_pos, entry_step) = next_subgrid
-            .iter()
-            .reduce(|a, b| if a.1 < b.1 { a } else { b })
-            .unwrap();
-        let subgrid =
-            std::mem::replace(&mut super_grid[subgrid_pos.as_index(super_grid_size)], None);
-        let mut entries = subgrid.expect("Revisiting a subgrid that was already accounted for");
-        entries.sort_by_key(|x| x.0);
+    // println!("{}", "part0 finished");
 
-        let mut zipper = NewEntriesMapZipper::new(new_entries);
-        let mut step_point: Option<()> = None;
-        // We see if we already calculated the path for a similar set of entries
-        for (step, point) in entries.iter() {
-            match zipper.1.get(point) {
-                Some(entry) => {
-                    // if
-                    // entry.0
-                    todo!()
+    // Part 1
+    for (direc, mut entries) in Direc::POWERS_OF_I.iter().zip(boundary_entries) {
+        // println!("checking outer{:?}", ());
+        let mut known_entry_patterns = vec![];
+        let mut _count = 0;
+        while entries.len() > 0 {
+            _count += 1;
+            let (mut step, point) = entries[0];
+            // println!("{:?}", (_count, step, known_entry_patterns.len()));
+
+            let were_going_in_circles =
+                known_entry_patterns
+                    .iter()
+                    .rfind(|(known, _): &&(Vec<_>, _)| {
+                        let mut known = known.to_owned();
+                        known.sort_by_key(|(step, _)| *step);
+                        let mut entries = entries.clone();
+                        entries.sort_by_key(|(step, _)| *step);
+
+                        let (known_min, entry_min) = (known[0].0, entries[0].0);
+
+                        entries
+                            .iter()
+                            .zip_longest(known.iter())
+                            .map(|x| match x {
+                                itertools::EitherOrBoth::Left(_) => false,
+                                itertools::EitherOrBoth::Right(_) => false,
+                                itertools::EitherOrBoth::Both(entry, known) => {
+                                    (entry.0 - entry_min, entry.1) == (known.0 - known_min, known.1)
+                                }
+                            })
+                            .all_equal_value()
+                            .is_ok_and(|x| x == true)
+                    });
+
+            if let Some((_, result_entries)) = were_going_in_circles {
+                let steps_left = (n_steps - step).saturating_sub(1);
+                let per_grid = grid_size.0;
+
+                let n_full_grids = steps_left / per_grid;
+                let n_full_grids = n_full_grids.saturating_sub(1);
+                // let mut entry_step = steps + 2;
+                if n_full_grids > 0 {
+                    assert_eq!(
+                        result_entries, &entries,
+                        "The entry pattern should only cycle back to itself"
+                    );
+
+                    entries_to_grids.extend([
+                        (step, point, n_full_grids.div_ceil(2), (max_even, max_odd)),
+                        (
+                            step + per_grid,
+                            point,
+                            n_full_grids / 2,
+                            (max_even, max_odd),
+                        ),
+                    ]);
+
+                    entries = entries
+                        .into_iter()
+                        .map(|(step, point)| (step + n_full_grids * per_grid, point))
+                        .collect();
+                    step += n_full_grids * per_grid;
+                    // No need to update point because of the assertion above.
                 }
-                None => todo!(),
             }
-            // if let Some(x) = zipper.1.get(point) {
-            //     x
+
+            // let (steps, point) = entries[0];
+            // let need_to_flip_parity = (steps % 2) != ((point.0 + point.1) % 2);
+
+            let original_entries = entries.clone();
+            let (boundary_entries, _) = find_exits(&mut grid, grid_size, n_steps, entries);
+            let (even, odd) = count_visits(&grid, grid_size);
+            grid_replace(&mut grid, 'O', '.');
+
+            entries_to_grids.push((step, point, 1, (even, odd)));
+            // if need_to_flip_parity {
+            //     total_even += odd;
+            //     total_odd += even;
+            // } else {
+            //     total_even += even;
+            //     total_odd += odd;
             // }
-            // match zipper.child(point) {
-            //     Ok(child) => zipper = child,
-            //     Err(mut unchanged) => {
-            //         // unchanged.1.insert(k, v);
-            //         zipper = unchanged;
-            //         step_point = Some((step, point));
-            //         break;
-            //     }
-            // }
+
+            // TODO: Is there a better way than just cloning?
+            entries = boundary_entries[direc.to_power_of_i()].clone();
+            // let boundary_entries = boundary_entries[direc.to_power_of_i()];
+            // entries = boundary_entries;
+            // let entries = boundary_entries
+            //     .into_iter()
+            //     .nth(direc.to_power_of_i())
+            //     .unwrap();
+            // entries = *boundary_entries.index(direc.to_power_of_i());
+
+            known_entry_patterns.push((original_entries, entries.clone()))
         }
+        // println!("{}", "part1 (1/4) finished");
 
-        let exits = simulate_grid(&grid, grid_size, entries, n_steps - *entry_step);
-        for (step_offset, edge_point, direc) in exits {
-            assert_eq!(edge_point.next_point(&direc, grid_size), None);
-            let entry = edge_point.next_point_wrap(&direc, grid_size);
-
-            let adjacent_subgrid_pos = subgrid_pos
-                .next_point(&direc, super_grid_size)
-                .expect("Super grid was not made big enough for number of iteration steps");
-
-            match &mut super_grid[adjacent_subgrid_pos.as_index(super_grid_size)] {
-                Some(entries) => entries.push((0, entry)),
-                // The adjacent subgrid was already handled
-                None => continue,
-            }
-        }
-        // next_sub_grid.ex
-        new_entries = zipper.unzip();
+        // println!(
+        //     "part1: {:?}",
+        //     (
+        //         direc,
+        //         count,
+        //         "grids traversed",
+        //         &entries_to_grids[saved.len()..],
+        //     )
+        // );
+        // saved = entries_to_grids.clone();
     }
-    0
+
+    // println!("{:?}", (diagonal_entries));
+    for (exit_corner, steps) in diagonal_entries {
+        if steps == usize::MAX {
+            continue;
+        }
+        let to_grid_edge = Direc::POWERS_OF_I
+            .iter()
+            .circular_tuple_windows()
+            .find(|(a, b)| {
+                exit_corner.next_point(a, grid_size).is_none()
+                    && exit_corner.next_point(b, grid_size).is_none()
+            })
+            .expect("A corner should have two grid edges");
+        let entry_corner = exit_corner
+            .next_point_wrap(to_grid_edge.0, grid_size)
+            .next_point_wrap(to_grid_edge.1, grid_size);
+
+        // Part 2
+        let steps_left = (n_steps - steps).saturating_sub(1);
+        let per_grid = grid_size.0;
+
+        let n_full_grids = steps_left / per_grid;
+        let n_full_grids = n_full_grids.saturating_sub(1);
+        let mut entry_step = steps + 2;
+
+        for in_diagonal_slice in 1..=n_full_grids {
+            entries_to_grids.push((
+                entry_step,
+                entry_corner,
+                in_diagonal_slice,
+                (max_even, max_odd),
+            ));
+            // entries_to_grids.extend(
+            //     [(entry_step, entry_corner, (max_even, max_odd))]
+            //         .iter()
+            //         .cycle()
+            //         .take(in_diagonal_slice),
+            // );
+            entry_step += per_grid;
+        }
+        // println!("{}", "part2 (1/4) finished");
+
+        // println!(
+        //     "part2: {:?}",
+        //     (&exit_corner, &entries_to_grids[saved.len()..],)
+        // );
+        // saved = entries_to_grids.clone();
+
+        // Part 3: Inner diagonal slice
+        // let entry_step = n_steps - last_leg;
+        let (_, diagonal_entries) = find_exits(
+            &mut grid,
+            grid_size,
+            n_steps,
+            vec![(entry_step, entry_corner)],
+        );
+        let (even, odd) = count_visits(&grid, grid_size);
+        grid_replace(&mut grid, 'O', '.');
+
+        entries_to_grids.push((entry_step, entry_corner, n_full_grids + 1, (even, odd)));
+        // entries_to_grids.extend(
+        //     [(entry_step, entry_corner, (even, odd))]
+        //         .iter()
+        //         .cycle()
+        //         .take(n_full_grids + 1),
+        // );
+
+        // Part 3: Outer diagonal slice (if it exists)
+        let a_side_corner = exit_corner.next_point_wrap(to_grid_edge.0, grid_size);
+        let entry_step = *diagonal_entries.get(&a_side_corner).unwrap();
+        if entry_step != usize::MAX {
+            let entry_step = entry_step + 1;
+            find_exits(
+                &mut grid,
+                grid_size,
+                n_steps,
+                vec![(entry_step, entry_corner)],
+            );
+            let (even, odd) = count_visits(&grid, grid_size);
+            grid_replace(&mut grid, 'O', '.');
+
+            entries_to_grids.push((entry_step, entry_corner, n_full_grids + 2, (even, odd)));
+            // entries_to_grids.extend(
+            //     [(entry_step, entry_corner, (even, odd))]
+            //         .iter()
+            //         .cycle()
+            //         .take(n_full_grids + 2),
+            // );
+        }
+
+        // let (even, odd) = (even * (n_grids + 1), odd * (n_grids + 1));
+        // if n_grids % 2 == 0 {
+        //     total_even += even;
+        //     total_odd += odd;
+        // } else {
+        //     total_even += odd;
+        //     total_odd += even;
+        // }
+
+        // println!(
+        //     "part3: {:?}",
+        //     (&exit_corner, &entries_to_grids[saved.len()..],)
+        // );
+        // saved = entries_to_grids.clone();
+        // println!("{}", "part3 (1/4) finished");
+    }
+
+    let mut result = 0;
+
+    for (step, entry_point, count, (even, odd)) in entries_to_grids {
+        // Yes, count could have been multiplied before, but this is easier to debug
+        result += count
+            * if (step + entry_point.0 + entry_point.1 + n_steps) % 2 == 0 {
+                even
+            } else {
+                odd
+            }
+    }
+    result
+
+    // println!("even/odd: {:?}", (total_even, total_odd));
+    // if (n_steps + start_parity) % 2 == 0 {
+    //     total_even
+    // } else {
+    //     total_odd
+    // }
+
+    // Can't do this since I can cross boundary without touching corner
+    // if diagonal_entries.values().any(|step| step == &n_steps) {
+    //     println!("{:?}", ());
+    // }
+
+    // for step_to_
 }
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day21.txt")?;
 
     println!("part 1 result = {:?}", part1(&text, 64));
-    // println!("part 2 result = {:?}", part2(&text, 6));
+    println!("part 2 result = {:?}", part2(&text, 26501365));
     let text = indoc! {"
     ...........
     .....###.#.
@@ -320,12 +659,30 @@ fn main() -> std::io::Result<()> {
     .##.#.####.
     .##..##.##.
     ..........."};
-    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
-    let mut grid = text.replace('\n', "").chars().collect_vec();
-    println!(
-        "{:?}",
-        (simulate_grid(&grid, grid_size, vec![(0, UsizePoint(5, 5))], 50))
-    );
+    // let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
+    // let mut grid = text.replace('\n', "").chars().collect_vec();
+    // println!(
+    //     "{:?}",
+    //     (simulate_grid(&grid, grid_size, vec![(0, UsizePoint(5, 5))], 50))
+    // );
+
+    // In exactly 6 steps, he can still reach 16 garden plots.
+    // In exactly 10 steps, he can reach any of 50 garden plots.
+    // In exactly 50 steps, he can reach 1594 garden plots.
+    // In exactly 100 steps, he can reach 6536 garden plots.
+    // In exactly 500 steps, he can reach 167004 garden plots.
+    // In exactly 1000 steps, he can reach 668697 garden plots.
+    // In exactly 5000 steps, he can reach 16733044 garden plots.
+
+    for n_steps in [6, 10, 50, 100, 500, 1000, 5000] {
+        // println!("part1: {}", part1(text, n_steps));
+        println!(
+            "In exactly {} steps, he can reach {} garden plots",
+            n_steps,
+            part2(text, n_steps)
+        );
+        // println!("But in reality it's: {}", _part2_brute_force(text, n_steps));
+    }
 
     Ok(())
 }

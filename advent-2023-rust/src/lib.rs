@@ -149,6 +149,16 @@ impl Direc {
             Direc::West => b.1.cmp(&a.1),
         }
     }
+
+    #[inline]
+    pub fn to_power_of_i(&self) -> usize {
+        match self {
+            Direc::East => 0,
+            Direc::North => 1,
+            Direc::West => 2,
+            Direc::South => 3,
+        }
+    }
 }
 
 pub fn chinese_remainder<T: Integer + Clone + Debug + Euclid>(
