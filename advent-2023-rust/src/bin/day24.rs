@@ -87,19 +87,6 @@ fn part1(text: &str) -> Output {
     inside
 }
 
-// MIT License: https://github.com/frewsxcv/rust-gcd/tree/8fb3a59184bc0672f6171363fd44860a3e3c9349
-fn euclid(a: BigUint, b: BigUint) -> BigUint {
-    // variable names based off euclidean division equation: a = b · q + r
-    let (mut a, mut b) = if a > b { (a, b) } else { (b, a) };
-
-    while b != BigUint::from(0u32) {
-        std::mem::swap(&mut a, &mut b);
-        b %= &a;
-    }
-
-    a
-}
-
 #[derive(Debug, Clone, PartialEq)]
 struct Point<T> {
     x: T,
@@ -215,7 +202,7 @@ impl_big_point!(std::ops::Sub<BigInt>, sub, BigInt);
 impl_big_point!(std::ops::Mul<BigInt>, mul, BigInt);
 impl_big_point!(std::ops::Div<BigInt>, div, BigInt);
 
-fn rock_delta(hailstones: &[(BigPoint, BigPoint)]) -> BigPoint {
+fn rock_delta(hailstones: &[(BigPoint, BigPoint)]) -> impl Iterator<Item = BigPoint> {
     let (point1, delta1) = hailstones[0].to_owned();
     let (point2, d2) = hailstones[1].to_owned();
     let (point3, d3) = hailstones[2].to_owned();
@@ -224,29 +211,139 @@ fn rock_delta(hailstones: &[(BigPoint, BigPoint)]) -> BigPoint {
     let delta2 = &d2 - &delta1;
     let delta3 = &d3 - &delta1;
 
-    let basis1 = &point2 - &point1;
+    // Construct the plane normal containing point1, point2, and point2 + delta2
+    let basis1 = &point1 - &point2;
     let basis2 = delta2.to_owned();
 
     let normal = basis1.cross_prod(&basis2);
     let (num, denom) = (
-        normal.dot_prod(&(&point1 - &point3)),
+        normal.dot_prod(&(&point2 - &point3)),
         normal.dot_prod(&delta3),
     );
+
+    // Sanity checks (I struggled with this one, okay!)
     assert_ne!(denom, BigInt::zero());
+    assert_ne!(num, BigInt::zero());
     assert_eq!(&num % &denom, BigInt::zero());
+    let hail3_ms_steps = &num / &denom;
 
-    let delta_main = (&(&delta3 * num) / denom);
-    println!("1: {:?}", (&delta_main, &delta1));
+    assert_eq!(basis1.dot_prod(&normal), BigInt::zero());
 
-    let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
-    let delta_main = &delta_main / gcd + &delta1;
-    println!("2: {:?}", (delta_main));
-    let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
-    println!("3: {:?}", (&delta_main / gcd.to_owned()));
-    return &delta_main / gcd;
+    // Find the intersection of the third hailstone with the plane. Since point1
+    // is stationary from this perspective, the rock thrown must go through
+    // point1 and the plane intersection point.
+    let intersection = &delta3 * hail3_ms_steps.clone() + &point3;
+    let rock_trajectory = &intersection - &point1;
+    let gcd = rock_trajectory
+        .x
+        .gcd(&rock_trajectory.y)
+        .gcd(&rock_trajectory.z);
+    let rock_trajectory = &rock_trajectory / gcd.clone();
 
-    // let mut no_collision = None;
+    // However, we need to figure out the scale the rock_trajectory. So we find
+    // the intersection of the second hailstone with the rock and that will give
+    // us the number of ms until it is hit with the rock. We already know the
+    // number of ms for hail3 so we can get the exact delta of the rock and walk
+    // backwards in time from there!
 
+    // p1 + t1 * dr = p2 + t2 * d2
+    // p1.x + t1 * dr.x = p2.x + t2 * d2.x
+    // let t2 = t1 - dt
+    // p1.x + t1 * dr.x = p2.x + t1 * d2.x - dt * d2.x
+    // t1 * dr.x - t1 * d2.x = p2.x - dt * d2.x - p1.x
+    // t1 = (p2.x - p1.x - dt * d2.x) / (dr.x - d2.x)
+    // Since t1, t2 >= 0
+    // (p2.x - p1.x - dt * d2.x) * sign(dr.x - d2.x) >= 0
+    // Either (p2.x - p1.x) / d2.x >= dt, (or  `<=`)
+    // Also, dr.x might equal d2.x, so we need to check y and z as well
+
+    let tmp = [
+        [&point1.x, &rock_trajectory.x, &point2.x, &d2.x].map(|x| x.clone()),
+        [&point1.y, &rock_trajectory.y, &point2.y, &d2.y].map(|x| x.clone()),
+        [&point1.z, &rock_trajectory.z, &point2.z, &d2.z].map(|x| x.clone()),
+    ];
+
+    let (p1, dr, p2, d2, positive) = tmp
+        .into_iter()
+        .find_map(|[p1, dr, p2, d2]| match (&dr - &d2).sign() * d2.sign() {
+            Sign::Minus => Some((p1, dr, p2, d2, false)),
+            Sign::Plus => Some((p1, dr, p2, d2, true)),
+            Sign::NoSign => None,
+        })
+        .unwrap();
+
+    let (dt, one) = if positive {
+        // (p2.x - p1.x) / d2.x
+        ((&p2 - &p1).div_ceil(&d2), BigInt::from(1))
+    } else {
+        ((&p2 - &p1).div_floor(&d2), BigInt::from(-1))
+    };
+
+    println!(
+        "{:?}",
+        (
+            &hailstones[0..3],
+            &rock_trajectory,
+            &rock_trajectory * gcd.clone(),
+            &gcd,
+        )
+    );
+
+    return (0..).filter_map(move |step| {
+        let dt = &dt + (&one * step);
+        let (num, denom) = (&p2 - &p1 - &dt * &d2, &dr - &d2);
+        if &num % &denom != BigInt::zero() {
+            println!("{:?}", (step, &num, &denom));
+            return None;
+        }
+        let t1 = &num / &denom;
+        let t2 = &t1 - &dt;
+
+        let hail2_ms_steps = t2;
+
+        if &hail2_ms_steps == &hail3_ms_steps {
+            // println!("{:?}", (step, &hail2_ms_steps, &hail3_ms_steps));
+            return Some(BigPoint::new_from(0, 0, 0));
+        }
+
+        // assert_ne!(hail2_ms_steps, hail3_ms_steps);
+        return Some(&(&point3 - &point2) / (&hail3_ms_steps - &hail2_ms_steps) + &delta1);
+    });
+    {
+        // for (p1, dr, p2, d2) in  tmp {
+        //     match
+        // }
+
+        // let (p1, dr, p2, d2) = if rock_trajectory.x != d2.x {
+        //     (point1.x, rock_trajectory.x, point2.x, d2.x)
+        // } else if rock_trajectory.y != d2.y {
+        //     (point1.y, rock_trajectory.y, point2.y, d2.y)
+        // } else if rock_trajectory.z != d2.z {
+        //     (point1.z, rock_trajectory.z, point2.z, d2.z)
+        // } else {
+        //     unreachable!("We assume the second hailstone is not parallel with the rock");
+        // };
+
+        // let sign = (&dr - &d2).sign();
+
+        // let gcd = rock_trajectory
+        //     .x
+        //     .gcd(&rock_trajectory.y)
+        //     .gcd(&rock_trajectory.z);
+        // &rock_trajectory / gcd
+        // return &rock_trajectory / hail3_ms_steps;
+
+        // println!("1: {:?}", (&delta_main, &delta1));
+
+        // let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
+        // let delta_main = &delta_main / gcd + &delta1;
+        // println!("2: {:?}", (delta_main));
+        // let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
+        // println!("3: {:?}", (&delta_main / gcd.to_owned()));
+        // return &delta_main / gcd;
+
+        // let mut no_collision = None;
+    }
     // 'outer: for (i1, (point1, delta1)) in hailstones.iter().enumerate() {
     //     for (i2, (point2, delta2)) in hailstones.iter().enumerate().skip(i1 + 1) {
     //         // t2 = ((y2 - y1) * dx1 - (x2 - x1) * dy1) / (dx2*dy1 - dy2*dx1)
@@ -319,42 +416,44 @@ fn rock_delta(hailstones: &[(BigPoint, BigPoint)]) -> BigPoint {
     // let point2 = BigPoint::new_from(b.0, b.1, b.2);
     // let d2 = BigPoint::new_from(b.3, b.4, b.5);
 
-    // Get a random (different) hailstone
-    // let third_index = (0..3).filter(|x| !indexes.contains(x)).next().unwrap();
-    let (a, b, c) = hailstones.iter().take(3).collect_tuple().unwrap();
-    let (point1, delta1) = a.to_owned();
-    let (point2, d2) = b.to_owned();
-    let (point3, d3) = c.to_owned();
+    {
+        // // Get a random (different) hailstone
+        // // let third_index = (0..3).filter(|x| !indexes.contains(x)).next().unwrap();
+        // let (a, b, c) = hailstones.iter().take(3).collect_tuple().unwrap();
+        // let (point1, delta1) = a.to_owned();
+        // let (point2, d2) = b.to_owned();
+        // let (point3, d3) = c.to_owned();
 
-    // Reframe velocity with respect to the first hailstone.
-    let delta2 = &d2 - &delta1;
-    let delta3 = &d3 - &delta1;
+        // // Reframe velocity with respect to the first hailstone.
+        // let delta2 = &d2 - &delta1;
+        // let delta3 = &d3 - &delta1;
 
-    // println!("{:?}", (&point1, &point2, &point3));
+        // // println!("{:?}", (&point1, &point2, &point3));
 
-    // The points (point1, point2, point2 + delta2) form a plane
-    let basis1 = &point2 - &point1;
-    let basis2 = &point2 - &point1 + &delta2;
+        // // The points (point1, point2, point2 + delta2) form a plane
+        // let basis1 = &point2 - &point1;
+        // let basis2 = &point2 - &point1 + &delta2;
 
-    // Find the normal vector of that plane
-    let normal = basis1.cross_prod(&basis2);
+        // // Find the normal vector of that plane
+        // let normal = basis1.cross_prod(&basis2);
 
-    // Assert the third hailstone trajectory and the plane are not parallel
-    let dot_prod = delta3.dot_prod(&normal);
-    assert_ne!(dot_prod, BigInt::zero());
+        // // Assert the third hailstone trajectory and the plane are not parallel
+        // let dot_prod = delta3.dot_prod(&normal);
+        // assert_ne!(dot_prod, BigInt::zero());
 
-    // Find intersection
-    let coef = (&point1 - &point3).dot_prod(&normal) / dot_prod;
-    let inter = &point3 + &(&delta3 * coef);
-    let delta_main = &inter - &point1;
+        // // Find intersection
+        // let coef = (&point1 - &point3).dot_prod(&normal) / dot_prod;
+        // let inter = &point3 + &(&delta3 * coef);
+        // let delta_main = &inter - &point1;
 
-    let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
+        // let gcd = delta_main.x.gcd(&delta_main.y).gcd(&delta_main.z);
 
-    // println!("original delta: {:?}", (&delta_main));
+        // // println!("original delta: {:?}", (&delta_main));
 
-    let delta_main = &delta_main / gcd + &delta1;
+        // let delta_main = &delta_main / gcd + &delta1;
 
-    delta_main
+        // delta_main
+    };
 }
 
 fn parse_hailstones(text: &str) -> Vec<(BigPoint, BigPoint)> {
@@ -389,12 +488,48 @@ fn part2(text: &str) -> (BigPoint, BigPoint) {
     // t2*dx2*dy1 - t2*dy2*dx1 = (y2 - y1) * dx1 - (x2 - x1) * dy1
     // t2 = ((y2 - y1) * dx1 - (x2 - x1) * dy1) / (dx2*dy1 - dy2*dx1)
 
-    let delta_main = rock_delta(&hailstones);
-    println!("delta_main: {:?}", (&delta_main));
+    let delta_main = {
+        let (point1, delta1) = hailstones[0].to_owned();
+        let (point2, d2) = hailstones[1].to_owned();
+        let (point3, d3) = hailstones[2].to_owned();
+
+        // Reframe velocity with respect to the first hailstone.
+        let delta2 = &d2 - &delta1;
+        let delta3 = &d3 - &delta1;
+
+        let basis1 = &point1 - &point2;
+        let basis2 = delta2.to_owned();
+
+        let normal = basis1.cross_prod(&basis2);
+        let (num, denom) = (
+            normal.dot_prod(&(&point2 - &point3)),
+            normal.dot_prod(&delta3),
+        );
+
+        assert_ne!(denom, BigInt::zero());
+        assert_ne!(num, BigInt::zero());
+        assert_eq!(&num % &denom, BigInt::zero());
+        let scale = &num / &denom;
+
+        assert_eq!(basis1.dot_prod(&normal), BigInt::zero());
+
+        let intersection = &delta3 * scale.clone() + &point3;
+        let unscaled_delta_main = &intersection - &point1;
+        // let gcd = unscaled_delta_main
+        //     .x
+        //     .gcd(&unscaled_delta_main.y)
+        //     .gcd(&unscaled_delta_main.z);
+        // &unscaled_delta_main / gcd
+        &unscaled_delta_main / scale
+    };
+
+    // let delta_main = rock_delta(&hailstones);
+    // println!("delta_main: {:?}", (&delta_main));
     let (ref_point, ref_delta) = &hailstones[0];
 
     let p1 = ref_point;
-    let d1 = &delta_main - ref_delta;
+    let d1 = delta_main.clone();
+    // let d1 = &delta_main - ref_delta;
 
     let mut neg_min_time = BigUint::one();
 
@@ -434,14 +569,14 @@ fn part2(text: &str) -> (BigPoint, BigPoint) {
         let t2 = &num / &denom;
         // t1 = (t2*dx2 + x2 - x1) / dx1
         let t1 = (&t2 * &d2.x + &p2.x - &p1.x) / &d1.x;
-        println!(
-            "t1: {:?}",
-            (
-                &t1,
-                &t2,
-                (p1.to_owned(), p2.to_owned(), d1.to_owned(), d2.to_owned())
-            )
-        );
+        // println!(
+        //     "t1: {:?}",
+        //     (
+        //         &t1,
+        //         &t2,
+        //         (p1.to_owned(), p2.to_owned(), d1.to_owned(), d2.to_owned())
+        //     )
+        // );
         if t1.sign() == Sign::Minus && t1.magnitude() > &neg_min_time {
             neg_min_time = 2u64 * t1.magnitude();
         }
@@ -648,16 +783,42 @@ mod tests {
         20, 19, 15 @  1, -5, -3"};
         let hailstones = parse_hailstones(text);
 
-        for gap in 0..hailstones.len() {
+        // for gap in 0..hailstones.len() {
+        //     let hailstones = hailstones
+        //         .iter()
+        //         .skip(gap)
+        //         .chain(hailstones.iter().take(gap))
+        //         .map(|pair| pair.to_owned())
+        //         .collect_vec();
+        //     println!("starting hailstones order: {:?}", (&hailstones));
+        //     println!("final main_delta: {:?}", (&rock_delta(&hailstones)));
+        // }
+
+        let expected = BigPoint::new_from(-3, 1, 2);
+        println!("expected result: {:?}", expected);
+
+        for triple in (0..hailstones.len()).combinations(3) {
             let hailstones = hailstones
                 .iter()
-                .skip(gap)
-                .chain(hailstones.iter().take(gap))
-                .map(|pair| pair.to_owned())
+                .enumerate()
+                .filter_map(|(i, x)| triple.contains(&i).then_some(x.clone()))
+                .chain(
+                    hailstones
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, x)| (!triple.contains(&i)).then_some(x.clone())),
+                )
                 .collect_vec();
-            println!("starting hailstones order: {:?}", (&hailstones));
-            println!("final main_delta: {:?}", (&rock_delta(&hailstones)));
+            println!(
+                "main_delta: {:?} <= {:?}",
+                &rock_delta(&hailstones)
+                    .take(10)
+                    .find_position(|x| { x == &expected }),
+                &triple
+            );
         }
+        // hailstones.iter().enumerate().combinations(3)
+
         assert!(false);
     }
 
@@ -766,6 +927,18 @@ mod tests {
         assert_eq!(
             &result,
             &[(BigPoint::new_from(2, 4, -6), BigPoint::new_from(1, 2, -3)),]
+        );
+    }
+
+    #[test]
+    fn test_cross_product() {
+        assert_eq!(
+            BigPoint::new_from(1, 0, 0).cross_prod(&BigPoint::new_from(0, 1, 0)),
+            BigPoint::new_from(0, 0, 1)
+        );
+        assert_eq!(
+            BigPoint::new_from(0, 1, 0).cross_prod(&BigPoint::new_from(1, 0, 0)),
+            BigPoint::new_from(0, 0, -1)
         );
     }
 }
