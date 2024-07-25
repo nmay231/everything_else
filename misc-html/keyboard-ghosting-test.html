@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Ghosting Test</title>
+</head>
+
+<body>
+    <input id="input" placeholder="Focus here to start the test" />
+    <script>
+        const input = document.getElementById("input");
+        input.addEventListener("keydown", (event) => {
+            event.preventDefault();
+            console.log(event.key);
+        })
+    </script>
+</body>
+
+</html>
