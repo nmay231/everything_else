@@ -68,7 +68,25 @@ def pentagonal(n: int):
             yield pent
 
 
+def flops_euler_method(n: int):
+    """How many flops to calculate partitions up to n using Euler's pentagonal method"""
+    assert n > 1
+    total_flops = 0
+    flops_in_current_block = 1
+    for index in range(1, n):
+        for is_large_step in [True, False]:
+            block_size = 2 * index - 1 if is_large_step else index
+
+            if block_size >= n:
+                return total_flops + flops_in_current_block * n
+            n -= block_size
+
+            total_flops += flops_in_current_block * block_size
+            flops_in_current_block += 1
+
+
 if __name__ == "__main__":
+    # Then I could work on calculating the flops of each, probably by using rust and simply incrementing a number instead of trying to be smart about it, but then that means I actually have to look at the compiled output if I want to be completely accurate.
     assert [*pentagonal(40)] == [1, 2, 5, 7, 12, 15, 22, 26, 35, 40]
 
     mine = partitions_up_to(100)
