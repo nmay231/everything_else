@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle, product
 from typing import Literal
@@ -15,65 +16,115 @@ class Node:
     center: tuple[float, float]
     color: Color | None
 
+    def __hash__(self):
+        return hash(self.center)
+
 
 class ColorGraph:
     def __init__(self, connections: dict[Node, list[Node]]):
-        self.connections = connections
+        self.connections: defaultdict[Node, set[Node]] = defaultdict(set)
+        for node, neighbors in connections.items():
+            self.connections[node] |= set(neighbors)
+            for neighbor in neighbors:
+                self.connections[neighbor].add(node)
 
 
-right_left = lambda: cycle([True, False])
+# right_left = lambda: cycle([True, False])
 
 
 image = Image.open("kami2.jpg")
 
-# edges = image.filter(ImageFilter.FIND_EDGES())
-# image.show()
-# image.crop((0, 85, image.width, image.height)).show()
-# edges = image
 edges = image.crop((0, 146, image.width, image.height - 383))
-# edges.show()
 draw = ImageDraw.Draw(edges)
-# draw.line((0, 146, edges.width, 146), fill="red", width=5)
-# edges.show()
 
+# Prepare for ALL the magic numbers
 LONG_RADIUS = 125
 SHORT_RADIUS = LONG_RADIUS * (3**0.5) / 2
 
-# START = (SHORT_RADIUS / 3, LONG_RADIUS / 2)
 START = (0, 0)
 
 columns: list[list[Node]] = []
+previous: list[Node] = []
+current: list[Node] = []
+directed_connections: defaultdict[Node, list[Node]] = defaultdict(list)
 
-# for is_right in right_left():
-for is_right, x_index in product([True, False], range(11)):
+for x_index, tri_pointing_left in product(range(11), [True, False]):
     column: list[Node] = []
     for y_index in range(15):
         x = (
             START[0]
             + x_index * SHORT_RADIUS
-            + (1 if is_right else 2) * SHORT_RADIUS / 3
+            + (1 if tri_pointing_left else 2) * SHORT_RADIUS / 3
         )
-        y = START[1] + y_index * LONG_RADIUS + (0 if is_right else LONG_RADIUS / 2)
+        y = (
+            START[1]
+            + y_index * LONG_RADIUS
+            + (0 if tri_pointing_left else LONG_RADIUS / 2)
+        )
         if x_index & 1:
             y += LONG_RADIUS / 2
 
         fill = "purple"
-        match (x_index & 1, y_index & 1):
-            case (0, 0):
+        # match (x_index & 1, y_index & 1):
+        #     case (0, 0):
+        #         fill = "red"
+        #     case (0, 1):
+        #         fill = "blue"
+        #     case (1, 0):
+        #         fill = "green"
+        #     case (1, 1):
+        #         fill = "yellow"
+        match (tri_pointing_left, x_index & 1):
+            case (True, 0):
                 fill = "red"
-            case (0, 1):
+            case (True, 1):
                 fill = "blue"
-            case (1, 0):
+            case (False, 0):
                 fill = "green"
-            case (1, 1):
+            case (False, 1):
                 fill = "yellow"
         # draw.circle((x, y), 10, fill=fill)
 
         column.append(Node((x, y), None))
     columns.append(column)
 
-edges.show()
+    previous, current = current, column
+    if len(columns) > 1:
+        if tri_pointing_left:
+            for left, right in zip(previous, current):
+                directed_connections[right].append(left)
+        else:
+            for left1, right, left2 in zip(previous, current, previous[1:]):
+                directed_connections[right].append(left1)
+                directed_connections[right].append(left2)
+
+# seen = Counter()
+# for coli, column in islice(enumerate(columns), 5):
+#     fill = ["red", "blue", "green", "yellow"][coli % 4]
+#     seen[fill] += 1
+#     for node in column:
+#         draw.circle(node.center, 10, fill=fill)
+
+
+# print(seen)
+
+# edges.show()
 # exit()
+
+colors = cycle(["red", "blue", "green", "yellow"])
+
+for a, bs in directed_connections.items():
+    draw.circle(a.center, fill="pink", radius=10)
+
+    bs = set(bs)
+
+    for b in bs:
+        draw.line(a.center + b.center, fill=next(colors), width=5)
+# graph = ColorGraph(directed_connections)
+# for a, bs in graph.connections.items():
+#     print(a, bs)
+
+edges.show()
 
 for y_index, (c1, c2) in enumerate(zip(columns, columns[1:], strict=False)):
     if y_index & 1:
