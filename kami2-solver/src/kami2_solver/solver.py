@@ -44,25 +44,31 @@ SHORT_RADIUS = LONG_RADIUS * (3**0.5) / 2
 START = (0, 0)
 
 columns: list[list[Node]] = []
-previous: list[Node] = []
-current: list[Node] = []
 directed_connections: defaultdict[Node, list[Node]] = defaultdict(list)
 
-for x_index, tri_pointing_left in product(range(11), [True, False]):
+for x_index, tri_pointing_right in product(range(11), [True, False]):
     column: list[Node] = []
     for y_index in range(15):
         x = (
             START[0]
             + x_index * SHORT_RADIUS
-            + (1 if tri_pointing_left else 2) * SHORT_RADIUS / 3
+            + (1 if tri_pointing_right else 2) * SHORT_RADIUS / 3
         )
         y = (
             START[1]
             + y_index * LONG_RADIUS
-            + (0 if tri_pointing_left else LONG_RADIUS / 2)
+            + (0 if tri_pointing_right else LONG_RADIUS / 2)
         )
         if x_index & 1:
-            y += LONG_RADIUS / 2
+            if tri_pointing_right:
+                y += LONG_RADIUS / 2
+            else:
+                y -= LONG_RADIUS / 2
+
+        # if x_index % 4 == 3:
+        #     y += LONG_RADIUS / 2
+        # elif x_index % 4 == 1:
+        #     y -= LONG_RADIUS / 2
 
         fill = "purple"
         # match (x_index & 1, y_index & 1):
@@ -74,7 +80,7 @@ for x_index, tri_pointing_left in product(range(11), [True, False]):
         #         fill = "green"
         #     case (1, 1):
         #         fill = "yellow"
-        match (tri_pointing_left, x_index & 1):
+        match (tri_pointing_right, x_index & 1):
             case (True, 0):
                 fill = "red"
             case (True, 1):
@@ -88,14 +94,20 @@ for x_index, tri_pointing_left in product(range(11), [True, False]):
         column.append(Node((x, y), None))
     columns.append(column)
 
-    previous, current = current, column
     if len(columns) > 1:
-        if tri_pointing_left:
+        previous, current = columns[-2:]
+        if tri_pointing_right:
             for left, right in zip(previous, current):
                 directed_connections[right].append(left)
         else:
+            if x_index & 1:
+                # current = current[1:]
+                previous = [None] + previous
             for left1, right, left2 in zip(previous, current, previous[1:]):
-                directed_connections[right].append(left1)
+                if left1 is not None:
+                    directed_connections[right].append(left1)
+
+                assert left2 is not None, "Only the topmost node can be None"
                 directed_connections[right].append(left2)
 
 # seen = Counter()
@@ -125,7 +137,7 @@ for a, bs in directed_connections.items():
 #     print(a, bs)
 
 edges.show()
-
+exit()
 for y_index, (c1, c2) in enumerate(zip(columns, columns[1:], strict=False)):
     if y_index & 1:
         c2 = c2[1:]
