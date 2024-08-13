@@ -1,20 +1,41 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import cycle, product
+from itertools import cycle, product, zip_longest
 from typing import Literal
 
 from PIL import Image, ImageDraw, ImageFilter
+from PIL.Image import Image as ImageType
+from PIL.ImageStat import Stat
 
 Color = Literal["red", "blue", "green", "yellow"]
 
 # F'in Pylance can't auto import but it keeps removing it from imports
-dont_remove_from_imports = [Image, ImageFilter, ImageDraw]
+dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType}
+
+
+def get_mean_color(
+    image: ImageType, point: tuple[float, float]
+) -> tuple[int, int, int] | None:
+    RAD = 10
+    minx = max(0, point[0] - RAD)
+    miny = max(0, point[1] - RAD)
+    maxx = min(image.width, point[0] + RAD)
+    maxy = min(image.height, point[1] + RAD)
+
+    if minx >= maxx or miny >= maxy:
+        # return (0, 0, 0)
+        return None
+
+    square = image.crop((minx, miny, maxx, maxy))
+
+    r, g, b = Stat(square).mean
+    return (255 - int(r), 255 - int(g), 255 - int(b))
 
 
 @dataclass
 class Node:
     center: tuple[float, float]
-    color: Color | None
+    color: tuple[int, int, int]
 
     def __hash__(self):
         return hash(self.center)
@@ -27,9 +48,6 @@ class ColorGraph:
             self.connections[node] |= set(neighbors)
             for neighbor in neighbors:
                 self.connections[neighbor].add(node)
-
-
-# right_left = lambda: cycle([True, False])
 
 
 image = Image.open("kami2.jpg")
@@ -65,33 +83,11 @@ for x_index, tri_pointing_right in product(range(11), [True, False]):
             else:
                 y -= LONG_RADIUS / 2
 
-        # if x_index % 4 == 3:
-        #     y += LONG_RADIUS / 2
-        # elif x_index % 4 == 1:
-        #     y -= LONG_RADIUS / 2
-
-        fill = "purple"
-        # match (x_index & 1, y_index & 1):
-        #     case (0, 0):
-        #         fill = "red"
-        #     case (0, 1):
-        #         fill = "blue"
-        #     case (1, 0):
-        #         fill = "green"
-        #     case (1, 1):
-        #         fill = "yellow"
-        match (tri_pointing_right, x_index & 1):
-            case (True, 0):
-                fill = "red"
-            case (True, 1):
-                fill = "blue"
-            case (False, 0):
-                fill = "green"
-            case (False, 1):
-                fill = "yellow"
-        # draw.circle((x, y), 10, fill=fill)
-
-        column.append(Node((x, y), None))
+        node_center = (x, y)
+        color = get_mean_color(edges, node_center)
+        if color is None:
+            continue
+        column.append(Node(node_center, color))
     columns.append(column)
 
     if len(columns) > 1:
@@ -103,93 +99,28 @@ for x_index, tri_pointing_right in product(range(11), [True, False]):
             if x_index & 1:
                 # current = current[1:]
                 previous = [None] + previous
-            for left1, right, left2 in zip(previous, current, previous[1:]):
+            for left1, right, left2 in zip_longest(previous, current, previous[1:]):
+                if right is None:
+                    continue
+                assert left1 or left2, "Only one neighbor can be None"
+
                 if left1 is not None:
                     directed_connections[right].append(left1)
-
-                assert left2 is not None, "Only the topmost node can be None"
-                directed_connections[right].append(left2)
-
-# seen = Counter()
-# for coli, column in islice(enumerate(columns), 5):
-#     fill = ["red", "blue", "green", "yellow"][coli % 4]
-#     seen[fill] += 1
-#     for node in column:
-#         draw.circle(node.center, 10, fill=fill)
-
-
-# print(seen)
-
-# edges.show()
-# exit()
+                if left2 is not None:
+                    directed_connections[right].append(left2)
 
 colors = cycle(["red", "blue", "green", "yellow"])
 
 for a, bs in directed_connections.items():
-    draw.circle(a.center, fill="pink", radius=10)
+    draw.circle(a.center, fill=a.color, radius=10, outline="black", width=2)
 
     bs = set(bs)
 
     for b in bs:
         draw.line(a.center + b.center, fill=next(colors), width=5)
+
 # graph = ColorGraph(directed_connections)
 # for a, bs in graph.connections.items():
 #     print(a, bs)
 
 edges.show()
-exit()
-for y_index, (c1, c2) in enumerate(zip(columns, columns[1:], strict=False)):
-    if y_index & 1:
-        c2 = c2[1:]
-
-    for x_index, (node1, node2) in enumerate(zip(c1, c2)):
-        x1, y1 = node1.center
-        x2, y2 = node2.center
-
-        # print(edges[x1, y1])
-        # edges.filter(ImageFilter)
-        RAD = 5
-        # edges.res
-        square = edges.crop(
-            (
-                max(0, x1 - RAD),
-                max(0, y1 - RAD),
-                min(image.width, x1 + RAD),
-                min(image.height, y1 + RAD),
-            )
-        )
-        colors = square.getcolors()
-        assert colors, "Too many colors"
-        print(len(colors), colors)
-        square.show()
-        # edges.getcolors()
-        break
-    break
-
-    # fill = "purple"
-    # match (x_index & 1, y_index & 1):
-    #     case (0, 0):
-    #         fill = "red"
-    #     case (0, 1):
-    #         fill = "blue"
-    #     case (1, 0):
-    #         fill = "green"
-    #     case (1, 1):
-    #         fill = "yellow"
-    # # draw.circle((x, y), 10, fill=fill)
-
-    # draw.line((x1, y1, x2, y2), fill=fill, width=5)
-
-# edges.show()
-# image.show("testing")
-
-# image.filter(ImageFilter.GaussianBlur(50)).show()
-# image.filter(ImageFilter.FIND_EDGES()).show("FIND_EDGES")
-# image.filter(ImageFilter.EDGE_ENHANCE()).show("EDGE_ENHANCE")
-# image.filter(ImageFilter.EDGE_ENHANCE_MORE()).show("EDGE_ENHANCE_MORE")
-# image.filter(ImageFilter.EDGE_ENHANCE()).filter(ImageFilter.FIND_EDGES()).show(
-#     "EDGE_ENHANCE 2"
-# )
-# image.filter(ImageFilter.EDGE_ENHANCE_MORE()).filter(ImageFilter.FIND_EDGES()).show(
-#     "EDGE_ENHANCE_MORE 2"
-# )
