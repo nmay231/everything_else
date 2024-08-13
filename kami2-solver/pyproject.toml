@@ -1,0 +1,26 @@
+[project]
+name = "kami2-solver"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Noah May", email = "noahmouse2011@gmail.com" }
+]
+dependencies = [
+    "pillow>=10.4.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kami2_solver"]
