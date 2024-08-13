@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle, product, zip_longest
@@ -23,13 +24,12 @@ def get_mean_color(
     maxy = min(image.height, point[1] + RAD)
 
     if minx >= maxx or miny >= maxy:
-        # return (0, 0, 0)
         return None
 
     square = image.crop((minx, miny, maxx, maxy))
 
     r, g, b = Stat(square).mean
-    return (255 - int(r), 255 - int(g), 255 - int(b))
+    return (int(r), int(g), int(b))
 
 
 @dataclass
@@ -52,10 +52,10 @@ class ColorGraph:
 
 image = Image.open("kami2.jpg")
 
+# Prepare for ALL the magic numbers
 edges = image.crop((0, 146, image.width, image.height - 383))
 draw = ImageDraw.Draw(edges)
 
-# Prepare for ALL the magic numbers
 LONG_RADIUS = 125
 SHORT_RADIUS = LONG_RADIUS * (3**0.5) / 2
 
@@ -97,7 +97,6 @@ for x_index, tri_pointing_right in product(range(11), [True, False]):
                 directed_connections[right].append(left)
         else:
             if x_index & 1:
-                # current = current[1:]
                 previous = [None] + previous
             for left1, right, left2 in zip_longest(previous, current, previous[1:]):
                 if right is None:
@@ -119,8 +118,17 @@ for a, bs in directed_connections.items():
     for b in bs:
         draw.line(a.center + b.center, fill=next(colors), width=5)
 
-# graph = ColorGraph(directed_connections)
-# for a, bs in graph.connections.items():
-#     print(a, bs)
 
-edges.show()
+graph = ColorGraph(directed_connections)
+used_colors = sorted(set(key.color for key in graph.connections.keys()))
+
+height = math.ceil(len(used_colors) / 5)
+palette = Image.new("RGB", (500, 100 * height), color=(0, 0, 0))
+
+for i, color in enumerate(used_colors):
+    x = i % 5
+    y = i // 5
+    palette.paste(color, (100 * x, 100 * y, 100 * (x + 1), 100 * (y + 1)))
+palette.show()
+
+# edges.show()
