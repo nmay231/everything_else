@@ -50,6 +50,61 @@ class ColorGraph:
             for neighbor in neighbors:
                 self.connections[neighbor].add(node)
 
+    def combine_neighbors(
+        self,
+        color_labels: dict[tuple[int, int, int], int],
+        average_color: dict[int, tuple[int, int, int]],
+    ):
+        """I guess after this point, nodes aren't represented by their centers
+        anymore"""
+        ungrouped = set(self.connections.keys())
+        groups: list[set[Node]] = []
+        while ungrouped:
+            node = ungrouped.pop()
+            group = {node}
+            border_nodes = {node}
+            while border_nodes:
+                node = border_nodes.pop()
+                for neighbor in self.connections[node]:
+                    if neighbor in group:
+                        continue
+                    elif color_labels[node.color] != color_labels[neighbor.color]:
+                        continue
+                    group.add(neighbor)
+                    border_nodes.add(neighbor)
+
+            groups.append(group)
+
+        frozen_groups = [frozenset(group) for group in groups]
+        group_connections: dict[frozenset[Node], set[frozenset[Node]]] = defaultdict(
+            set
+        )
+        for group in frozen_groups:
+            neighbors: set[Node] = set()
+            for node in group:
+                for neighbor in self.connections[node]:
+                    if neighbor in group:
+                        continue
+                    neighbors.add(neighbor)
+
+            # TODO: Map nodes to groups instead of this
+            group_connections[group] = {
+                next(group for group in frozen_groups if neighbor in group)
+                for neighbor in neighbors
+            }
+
+        self.connections = defaultdict(set)
+        representatives = {group: next(iter(group)) for group in frozen_groups}
+        for group, neighbors_ in group_connections.items():
+            for neighbor in neighbors_:
+                self.connections[representatives[group]].add(representatives[neighbor])
+                self.connections[representatives[neighbor]].add(representatives[group])
+
+        for node in self.connections:
+            node.color = average_color[color_labels[node.color]]
+
+        print("I think this worked correctly first shot!")
+
 
 image = Image.open("kami2.jpg")
 
@@ -171,3 +226,7 @@ for a, bs in graph.connections.items():
 print(len(graph.connections), [*islice(graph.connections.items(), 5)])
 
 edges.show()
+
+print(len(graph.connections))
+graph.combine_neighbors(color_labels, average_color)
+print(len(graph.connections))
