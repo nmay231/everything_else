@@ -1,22 +1,19 @@
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import cycle, product, zip_longest
-from typing import Literal
+from itertools import cycle, islice, product, zip_longest
 
 from PIL import Image, ImageDraw, ImageFilter
 from PIL.Image import Image as ImageType
 from PIL.ImageStat import Stat
 
-Color = Literal["red", "blue", "green", "yellow"]
+ColorTriple = tuple[int, int, int]
 
 # F'in Pylance can't auto import but it keeps removing it from imports
 dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType}
 
 
-def get_mean_color(
-    image: ImageType, point: tuple[float, float]
-) -> tuple[int, int, int] | None:
+def get_mean_color(image: ImageType, point: tuple[float, float]) -> ColorTriple | None:
     RAD = 10
     minx = max(0, point[0] - RAD)
     miny = max(0, point[1] - RAD)
@@ -35,7 +32,7 @@ def get_mean_color(
 @dataclass
 class Node:
     center: tuple[float, float]
-    color: tuple[int, int, int]
+    color: ColorTriple
 
     def __hash__(self):
         return hash(self.center)
@@ -129,6 +126,42 @@ for i, color in enumerate(used_colors):
     x = i % 5
     y = i // 5
     palette.paste(color, (100 * x, 100 * y, 100 * (x + 1), 100 * (y + 1)))
-palette.show()
+# palette.show()
 
 # edges.show()
+
+# Perform hierarchical clustering
+distances = [[float("inf")] * len(used_colors) for _ in range(len(used_colors))]
+
+for i, color in enumerate(used_colors):
+    distances[i][i] = 0
+    for j, other in islice(enumerate(used_colors), i + 1, None):
+        distance = sum((c1 - c2) ** 2 for c1, c2 in zip(color, other))
+        distances[i][j] = distance
+        distances[j][i] = distance
+
+lookup = dict(zip(used_colors, range(len(used_colors))))
+clusters: list[list[ColorTriple]] = [used_colors[:]]
+
+for _ in range(10):
+    for i, color in enumerate(clusters):
+        min_distance = min(distances[i])
+        min_index = distances[i].index(min_distance)
+        if min_distance > 0:
+            clusters[i] = clusters[min_index]
+            clusters[min_index] = color
+            distances[i][min_index] = float("inf")
+            distances[min_index][i] = float("inf")
+
+representatives = defaultdict[ColorTriple, list[ColorTriple]](list)
+
+for color in used_colors:
+    for rep in representatives.keys():
+        diff = sum((c1 - c2) ** 2 for c1, c2 in zip(color, rep))
+        if diff < 4000:
+            representatives[rep].append(color)
+            break
+    else:
+        representatives[color] = [color]
+
+print(len(representatives))
