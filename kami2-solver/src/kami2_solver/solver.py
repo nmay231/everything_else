@@ -213,20 +213,21 @@ inverted_colors = {
     k: (255 - v[0], 255 - v[1], 255 - v[2]) for k, v in average_color.items()
 }
 
+# print(len(graph.connections))
+graph.combine_neighbors(color_labels, average_color)
+# print(len(graph.connections))
+
 draw = ImageDraw.Draw(edges)
 for a, bs in graph.connections.items():
-    color = inverted_colors[color_labels[a.color]]
+    # color = inverted_colors[color_labels[a.color]]
+    color = a.color
     draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
 
     for b in bs:
-        if a.center < b.center or color_labels[a.color] != color_labels[b.color]:
-            continue
-        draw.line(a.center + b.center, fill=color, width=5)
+        # if a.center < b.center or color_labels[a.color] != color_labels[b.color]:
+        #     continue
+        draw.line(a.center + b.center, fill="black", width=5)
 
 print(len(graph.connections), [*islice(graph.connections.items(), 5)])
 
 edges.show()
-
-print(len(graph.connections))
-graph.combine_neighbors(color_labels, average_color)
-print(len(graph.connections))
