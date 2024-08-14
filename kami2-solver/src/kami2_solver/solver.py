@@ -1,18 +1,18 @@
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import cycle, product, zip_longest
-from typing import Literal
+from itertools import cycle, islice, product, zip_longest
+from typing import Any, cast
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from PIL.Image import Image as ImageType
 from PIL.ImageStat import Stat
 from sklearn.cluster import AgglomerativeClustering
 
-Color = Literal["red", "blue", "green", "yellow"]
-
 # F'in Pylance can't auto import but it keeps removing it from imports
 dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, ImageFont}
+
+random_colors = cycle(["red", "blue", "green", "yellow"])
 
 
 def get_mean_color(
@@ -111,14 +111,6 @@ for x_index, tri_pointing_right in product(range(11), [True, False]):
 
 colors = cycle(["red", "blue", "green", "yellow"])
 
-for a, bs in directed_connections.items():
-    draw.circle(a.center, fill=a.color, radius=10, outline="black", width=2)
-
-    bs = set(bs)
-
-    for b in bs:
-        draw.line(a.center + b.center, fill=next(colors), width=5)
-
 
 graph = ColorGraph(directed_connections)
 used_colors = sorted(set(key.color for key in graph.connections.keys()))
@@ -126,8 +118,10 @@ used_colors = sorted(set(key.color for key in graph.connections.keys()))
 # TODO: I guess I could require the user to specify the number of clusters, but
 # I kinda like the idea of it being automatic
 model = AgglomerativeClustering(distance_threshold=500, n_clusters=None)
-model.fit(used_colors)
+model.fit(cast(Any, used_colors))
 print(model.n_clusters_)
+
+color_labels = dict(zip(used_colors, model.labels_))
 
 # print(model.labels_)
 
@@ -136,11 +130,44 @@ palette = Image.new("RGB", (500, 100 * height), color=(0, 0, 0))
 draw = ImageDraw.Draw(palette)
 
 font = ImageFont.truetype("arial.ttf", 100)
-for i, (color, label) in enumerate(zip(used_colors, model.labels_)):
+for i, (color, label) in enumerate(color_labels.items()):
     x = i % 5
     y = i // 5
     palette.paste(color, (100 * x, 100 * y, 100 * (x + 1), 100 * (y + 1)))
     draw.text((100 * x + 10, 100 * y + 10), str(label), fill="black", font=font)
-palette.show()
 
-# edges.show()
+# palette.show()
+
+average_color: dict[int, tuple[int, int, int]] = {}
+
+for i in range(model.n_clusters_):
+    colors = [color for color in used_colors if color_labels[color] == i]
+    r = b = g = 0
+    for color in colors:
+        r += color[0]
+        g += color[1]
+        b += color[2]
+
+    average_color[i] = (
+        int(r / len(colors)),
+        int(g / len(colors)),
+        int(b / len(colors)),
+    )
+
+inverted_colors = {
+    k: (255 - v[0], 255 - v[1], 255 - v[2]) for k, v in average_color.items()
+}
+
+draw = ImageDraw.Draw(edges)
+for a, bs in graph.connections.items():
+    color = inverted_colors[color_labels[a.color]]
+    draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
+
+    for b in bs:
+        if a.center < b.center or color_labels[a.color] != color_labels[b.color]:
+            continue
+        draw.line(a.center + b.center, fill=color, width=5)
+
+print(len(graph.connections), [*islice(graph.connections.items(), 5)])
+
+edges.show()
