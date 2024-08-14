@@ -1,8 +1,8 @@
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
-from itertools import cycle, islice, product, zip_longest
-from typing import Any, cast
+from itertools import cycle, product, zip_longest
+from typing import Any, Iterable, Mapping, cast
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from PIL.Image import Image as ImageType
@@ -41,9 +41,12 @@ class Node:
     def __hash__(self):
         return hash(self.center)
 
+    def with_color(self, color: tuple[int, int, int]) -> "Node":
+        return Node(self.center, color)
+
 
 class ColorGraph:
-    def __init__(self, connections: dict[Node, list[Node]]):
+    def __init__(self, connections: Mapping[Node, Iterable[Node]]):
         self.connections: defaultdict[Node, set[Node]] = defaultdict(set)
         for node, neighbors in connections.items():
             self.connections[node] |= set(neighbors)
@@ -103,7 +106,42 @@ class ColorGraph:
         for node in self.connections:
             node.color = average_color[color_labels[node.color]]
 
-        print("I think this worked correctly first shot!")
+    @staticmethod
+    def _merge(nodes: set[Node], to_replace: set[Node], replacement: Node) -> set[Node]:
+        if nodes & to_replace:
+            return (nodes - to_replace) | {replacement}
+        else:
+            return nodes
+
+    def recolor_node_and_merge(
+        self, to_recolor: Node, color: tuple[int, int, int]
+    ) -> "ColorGraph":
+        recolored = to_recolor.with_color(color)
+        to_merge = {
+            node for node in self.connections[to_recolor] if node.color == color
+        }
+        to_merge.add(recolored)
+
+        connections = defaultdict(
+            set,
+            (
+                (node, self._merge(neighbors, to_merge, recolored))
+                for node, neighbors in self.connections.items()
+                if node not in to_merge
+            ),
+        )
+
+        new_neighbors = set()
+        for merging in to_merge:
+            new_neighbors |= self.connections[merging]
+        connections[recolored] = self._merge(new_neighbors, to_merge, recolored)
+
+        # The real fix is to make two factory functions, one that assumes the
+        # connections are already bidirectional, and one that assumes they are
+        # not. But I don't want to do that right now.
+        result = ColorGraph.__new__(ColorGraph)
+        result.connections = connections
+        return result
 
 
 image = Image.open("kami2.jpg")
@@ -176,7 +214,7 @@ model = AgglomerativeClustering(distance_threshold=500, n_clusters=None)
 model.fit(cast(Any, used_colors))
 print(model.n_clusters_)
 
-color_labels = dict(zip(used_colors, model.labels_))
+color_labels: dict[tuple[int, int, int], int] = dict(zip(used_colors, model.labels_))
 
 # print(model.labels_)
 
@@ -210,24 +248,42 @@ for i in range(model.n_clusters_):
     )
 
 inverted_colors = {
-    k: (255 - v[0], 255 - v[1], 255 - v[2]) for k, v in average_color.items()
+    label: (255 - r, 255 - g, 255 - b) for label, (r, g, b) in average_color.items()
 }
 
 # print(len(graph.connections))
 graph.combine_neighbors(color_labels, average_color)
+
+
 # print(len(graph.connections))
 
+largest_neighborhood = max(graph.connections.items(), key=lambda x: len(x[1]))
+center, neighbors = largest_neighborhood
+common_color = Counter(node.color for node in neighbors).most_common(1)[0][0]
+
+backup = edges.copy()
 draw = ImageDraw.Draw(edges)
 for a, bs in graph.connections.items():
-    # color = inverted_colors[color_labels[a.color]]
+    color = a.color
+    radius = 30 if a == center else 8
+    draw.circle(a.center, fill=color, radius=radius, outline="black", width=2)
+
+    width = 10 if a == center else 2
+    for b in bs:
+        fill = "blue" if a == center and b.color == common_color else "black"
+        draw.line(a.center + b.center, fill=fill, width=width)
+
+# color_labels = {color: label for label, color in average_color.items()}
+edges.show()
+
+graph = graph.recolor_node_and_merge(center, common_color)
+
+draw = ImageDraw.Draw(backup)
+
+for a, bs in graph.connections.items():
     color = a.color
     draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
 
     for b in bs:
-        # if a.center < b.center or color_labels[a.color] != color_labels[b.color]:
-        #     continue
         draw.line(a.center + b.center, fill="black", width=5)
-
-print(len(graph.connections), [*islice(graph.connections.items(), 5)])
-
-edges.show()
+backup.show()
