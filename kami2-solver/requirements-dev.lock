@@ -10,5 +10,16 @@
 #   universal: false
 
 -e file:.
+joblib==1.4.2
+    # via scikit-learn
+numpy==2.0.1
+    # via scikit-learn
+    # via scipy
 pillow==10.4.0
     # via kami2-solver
+scikit-learn==1.5.1
+    # via kami2-solver
+scipy==1.14.0
+    # via scikit-learn
+threadpoolctl==3.5.0
+    # via scikit-learn

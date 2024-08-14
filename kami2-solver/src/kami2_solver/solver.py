@@ -4,14 +4,15 @@ from dataclasses import dataclass
 from itertools import cycle, product, zip_longest
 from typing import Literal
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from PIL.Image import Image as ImageType
 from PIL.ImageStat import Stat
+from sklearn.cluster import AgglomerativeClustering
 
 Color = Literal["red", "blue", "green", "yellow"]
 
 # F'in Pylance can't auto import but it keeps removing it from imports
-dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType}
+dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, ImageFont}
 
 
 def get_mean_color(
@@ -122,13 +123,24 @@ for a, bs in directed_connections.items():
 graph = ColorGraph(directed_connections)
 used_colors = sorted(set(key.color for key in graph.connections.keys()))
 
+# TODO: I guess I could require the user to specify the number of clusters, but
+# I kinda like the idea of it being automatic
+model = AgglomerativeClustering(distance_threshold=500, n_clusters=None)
+model.fit(used_colors)
+print(model.n_clusters_)
+
+# print(model.labels_)
+
 height = math.ceil(len(used_colors) / 5)
 palette = Image.new("RGB", (500, 100 * height), color=(0, 0, 0))
+draw = ImageDraw.Draw(palette)
 
-for i, color in enumerate(used_colors):
+font = ImageFont.truetype("arial.ttf", 100)
+for i, (color, label) in enumerate(zip(used_colors, model.labels_)):
     x = i % 5
     y = i // 5
     palette.paste(color, (100 * x, 100 * y, 100 * (x + 1), 100 * (y + 1)))
+    draw.text((100 * x + 10, 100 * y + 10), str(label), fill="black", font=font)
 palette.show()
 
 # edges.show()
