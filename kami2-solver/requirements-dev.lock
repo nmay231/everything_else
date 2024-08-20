@@ -10,16 +10,28 @@
 #   universal: false
 
 -e file:.
+attrs==24.2.0
+    # via hypothesis
+hypothesis==6.111.0
+iniconfig==2.0.0
+    # via pytest
 joblib==1.4.2
     # via scikit-learn
 numpy==2.0.1
     # via scikit-learn
     # via scipy
+packaging==24.1
+    # via pytest
 pillow==10.4.0
     # via kami2-solver
+pluggy==1.5.0
+    # via pytest
+pytest==8.3.2
 scikit-learn==1.5.1
     # via kami2-solver
 scipy==1.14.0
     # via scikit-learn
+sortedcontainers==2.4.0
+    # via hypothesis
 threadpoolctl==3.5.0
     # via scikit-learn

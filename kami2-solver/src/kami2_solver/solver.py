@@ -1,4 +1,7 @@
+import json
+import logging
 import math
+import pickle
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import cycle, product, zip_longest
@@ -13,6 +16,19 @@ from sklearn.cluster import AgglomerativeClustering
 dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, ImageFont}
 
 random_colors = cycle(["red", "blue", "green", "yellow"])
+
+
+# https://stackoverflow.com/questions/1574458/python-object-that-monitors-changes-in-objects
+# Used to debug an issue I had
+class ChangeDetector:
+    def __init__(self):
+        self.objects = dict()
+
+    def detect_change(self, obj):
+        current_pickle = pickle.dumps(obj, -1)
+        if id(obj) in self.objects and current_pickle != self.objects[id(obj)]:
+            raise ValueError("Object changed")
+        self.objects[id(obj)] = current_pickle
 
 
 def get_mean_color(
@@ -120,7 +136,7 @@ class ColorGraph:
         to_merge = {
             node for node in self.connections[to_recolor] if node.color == color
         }
-        to_merge.add(recolored)
+        to_merge.add(to_recolor)
 
         connections = defaultdict(
             set,
@@ -133,8 +149,9 @@ class ColorGraph:
 
         new_neighbors = set()
         for merging in to_merge:
+            assert merging in self.connections
             new_neighbors |= self.connections[merging]
-        connections[recolored] = self._merge(new_neighbors, to_merge, recolored)
+        connections[recolored] = new_neighbors - to_merge
 
         # The real fix is to make two factory functions, one that assumes the
         # connections are already bidirectional, and one that assumes they are
@@ -212,7 +229,7 @@ used_colors = sorted(set(key.color for key in graph.connections.keys()))
 # I kinda like the idea of it being automatic
 model = AgglomerativeClustering(distance_threshold=500, n_clusters=None)
 model.fit(cast(Any, used_colors))
-print(model.n_clusters_)
+print(f"Discovered {model.n_clusters_} colors")
 
 color_labels: dict[tuple[int, int, int], int] = dict(zip(used_colors, model.labels_))
 
@@ -251,39 +268,106 @@ inverted_colors = {
     label: (255 - r, 255 - g, 255 - b) for label, (r, g, b) in average_color.items()
 }
 
-# print(len(graph.connections))
 graph.combine_neighbors(color_labels, average_color)
 
 
-# print(len(graph.connections))
+@dataclass
+class FloodFillSearch:
+    graph: ColorGraph
+    steps: list[Node]
 
-largest_neighborhood = max(graph.connections.items(), key=lambda x: len(x[1]))
-center, neighbors = largest_neighborhood
-common_color = Counter(node.color for node in neighbors).most_common(1)[0][0]
 
-backup = edges.copy()
-draw = ImageDraw.Draw(edges)
-for a, bs in graph.connections.items():
-    color = a.color
-    radius = 30 if a == center else 8
-    draw.circle(a.center, fill=color, radius=radius, outline="black", width=2)
+def json_default_serialize(unknown: Any) -> Any:
+    if isinstance(unknown, ColorGraph):
+        nodes = [node for node in unknown.connections]
+        node_index = {node: i for i, node in enumerate(nodes)}
+        connections = {
+            node_index[node]: [node_index[neighbor] for neighbor in neighbors]
+            for node, neighbors in unknown.connections.items()
+        }
+        return {"nodes": nodes, "connections": connections}
+    elif isinstance(unknown, Node):
+        return {"center": unknown.center, "color": unknown.color}
+    elif isinstance(unknown, FloodFillSearch):
+        return {"graph": unknown.graph, "steps": unknown.steps}
+    else:
+        raise TypeError(f"Unknown type {type(unknown)}")
 
-    width = 10 if a == center else 2
-    for b in bs:
-        fill = "blue" if a == center and b.color == common_color else "black"
-        draw.line(a.center + b.center, fill=fill, width=width)
 
-# color_labels = {color: label for label, color in average_color.items()}
-edges.show()
+if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    # Each line will be json so I can parse with jq
+    logging.basicConfig(level=logging.INFO, filename="kami2.log", format="%(message)s")
 
-graph = graph.recolor_node_and_merge(center, common_color)
+    searches = [FloodFillSearch(graph, [])]
+    logger.info(json.dumps(searches[0], default=json_default_serialize))
+    step = 0
 
-draw = ImageDraw.Draw(backup)
+    # Breadth-first search
+    # I know this puzzle can at least be solved in 5 iterations
+    for iteration in range(5):
+        print(f"Iteration {iteration} ==============")
 
-for a, bs in graph.connections.items():
-    color = a.color
-    draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
+        next_iteration: list[FloodFillSearch] = []
+        for search in searches:
+            for node in search.graph.connections.keys():
+                colors = {neighbor.color for neighbor in search.graph.connections[node]}
+                for color in colors:
+                    new_graph = search.graph.recolor_node_and_merge(node, color)
+                    assert len(new_graph.connections) < len(
+                        search.graph.connections
+                    ), "Flood fill should only remove nodes"
 
-    for b in bs:
-        draw.line(a.center + b.center, fill="black", width=5)
-backup.show()
+                    # assert all(
+                    #     n.color != neighbor.color
+                    #     for n in new_graph.connections
+                    #     for neighbor in new_graph.connections[n]
+                    # ), "nodes should be merged"
+                    # assert node not in new_graph.connections and all(
+                    #     node not in conn for conn in new_graph.connections.values()
+                    # ), "node should be merged into a new node"
+
+                    new_search = FloodFillSearch(new_graph, search.steps + [node])
+                    logger.info(json.dumps(new_search, default=json_default_serialize))
+                    next_iteration.append(new_search)
+
+                    step += 1
+                    if step % 1000 == 0:
+                        print(f"Step {step}")
+        searches = next_iteration
+
+    with open("kami2.json", "w") as f:
+        json.dump(searches, f, default=json_default_serialize)
+
+    exit()
+
+    largest_neighborhood = max(graph.connections.items(), key=lambda x: len(x[1]))
+    center, neighbors = largest_neighborhood
+    common_color = Counter(node.color for node in neighbors).most_common(1)[0][0]
+
+    backup = edges.copy()
+    draw = ImageDraw.Draw(edges)
+    for a, bs in graph.connections.items():
+        color = a.color
+        radius = 30 if a == center else 8
+        draw.circle(a.center, fill=color, radius=radius, outline="black", width=2)
+
+        width = 10 if a == center else 2
+        for b in bs:
+            fill = "blue" if a == center and b.color == common_color else "black"
+            draw.line(a.center + b.center, fill=fill, width=width)
+
+    # color_labels = {color: label for label, color in average_color.items()}
+    edges.show()
+
+    graph = graph.recolor_node_and_merge(center, common_color)
+
+    draw = ImageDraw.Draw(backup)
+
+    for a, bs in graph.connections.items():
+        color = a.color
+        draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
+
+        for b in bs:
+            draw.line(a.center + b.center, fill="black", width=5)
+    backup.show()
