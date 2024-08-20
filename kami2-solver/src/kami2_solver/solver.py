@@ -220,6 +220,19 @@ class ColorGraph:
 
         return eccentricity
 
+    def exclude_impossible_starts(self, moves_left: int) -> Iterable[Node]:
+        eccentricities = self.eccentricities()
+        if max(eccentricities.values()) > 2 * moves_left:
+            # A move can only reduce eccentricity by at most 2, so any move set
+            # would leave more than 2 nodes after the flood fill.
+            return
+
+        # TODO: I thought there was a way to filter out high eccentricity nodes
+        # here, but that's only valid if we know that focusing on that node will
+        # leave another one with connections. Maybe there's something about how
+        # many highly eccentric nodes that matters? Ugh...
+        yield from eccentricities.keys()
+
 
 image = Image.open("kami2.jpg")
 
@@ -370,7 +383,8 @@ if __name__ == "__main__":
 
         next_iteration: list[FloodFillSearch] = []
         for search in searches:
-            for node in search.graph.connections.keys():
+            # for node in search.graph.connections.keys():
+            for node in search.graph.exclude_impossible_starts(5 - iteration):
                 colors = {neighbor.color for neighbor in search.graph.connections[node]}
                 for color in colors:
                     new_graph = search.graph.recolor_node_and_merge(node, color)
@@ -393,7 +407,9 @@ if __name__ == "__main__":
 
                     step += 1
                     if step % 1000 == 0:
-                        print(f"Step {step}")
+                        print(
+                            f"Step {step}, with {len(searches) + len(next_iteration)} bifurcations remaining"
+                        )
         searches = next_iteration
 
     with open("kami2.json", "w") as f:
