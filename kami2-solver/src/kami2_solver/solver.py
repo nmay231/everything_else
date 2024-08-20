@@ -160,6 +160,66 @@ class ColorGraph:
         result.connections = connections
         return result
 
+    def distance_matrix(
+        self, indexes_: dict[Node, int] | None = None
+    ) -> tuple[dict[Node, int], list[list[int]]]:
+        """d(u, v) for u, v in V(G) is the distance between the vertices u and
+        v. This method returns a map from each node to an arbitrary index,
+        and the distance between each vertex in the graph using those
+        indexes.
+        """
+        indexes = indexes_ or {
+            node: i for i, node in enumerate(self.connections.keys())
+        }
+        assert len(indexes) == len(
+            self.connections
+        ), "Indexes must be the same length as the graph"
+
+        node_count = len(self.connections)
+        distances: list[list[int]] = [
+            [node_count] * node_count for _ in range(node_count)
+        ]
+
+        # TODO: I feel like there's a better way than O(n^2) here, but ah well
+        for center in indexes.keys():
+            frontier = {(center, 1)}
+            seen: set[Node] = set()
+            center_index = indexes[center]
+
+            while frontier:
+                (next_, distance) = frontier.pop()
+                seen.add(next_)
+
+                for neighbor in self.connections[next_]:
+                    if neighbor in seen:
+                        continue
+                    frontier.add((neighbor, distance + 1))
+
+                    neighbor_index = indexes[neighbor]
+                    if distance < distances[center_index][neighbor_index]:
+                        distances[center_index][neighbor_index] = distance
+                        distances[neighbor_index][center_index] = distance
+
+        for i in range(node_count):
+            distances[i][i] = 0
+
+        return indexes, distances
+
+    def eccentricities(self) -> dict[Node, int]:
+        """d(u, v) for u, v in V(G) is the distance between the vertices u and
+        v. Eccentricity of a vertex v is the max distance d(v, u) for all
+        vertex u in V(G). This method calculates the eccentricity of each
+        node in the graph.
+        """
+        indexes, distances = self.distance_matrix()
+
+        eccentricity: dict[Node, int] = {}
+        for node, i in indexes.items():
+            max_distance = max(distances[i])
+            eccentricity[node] = max_distance
+
+        return eccentricity
+
 
 image = Image.open("kami2.jpg")
 
@@ -314,18 +374,18 @@ if __name__ == "__main__":
                 colors = {neighbor.color for neighbor in search.graph.connections[node]}
                 for color in colors:
                     new_graph = search.graph.recolor_node_and_merge(node, color)
+
                     assert len(new_graph.connections) < len(
                         search.graph.connections
                     ), "Flood fill should only remove nodes"
-
-                    # assert all(
-                    #     n.color != neighbor.color
-                    #     for n in new_graph.connections
-                    #     for neighbor in new_graph.connections[n]
-                    # ), "nodes should be merged"
-                    # assert node not in new_graph.connections and all(
-                    #     node not in conn for conn in new_graph.connections.values()
-                    # ), "node should be merged into a new node"
+                    assert all(
+                        n.color != neighbor.color
+                        for n in new_graph.connections
+                        for neighbor in new_graph.connections[n]
+                    ), "nodes should be merged"
+                    assert node not in new_graph.connections and all(
+                        node not in conn for conn in new_graph.connections.values()
+                    ), "node should be merged into a new node"
 
                     new_search = FloodFillSearch(new_graph, search.steps + [node])
                     logger.info(json.dumps(new_search, default=json_default_serialize))
