@@ -376,6 +376,59 @@ if __name__ == "__main__":
     logger.info(json.dumps(searches[0], default=json_default_serialize))
     step = 0
 
+    # The biggest reason why I am stuck on this problem is I can easily think of
+    # heuristics that will (probably) find a solution pretty quickly, e.g.
+    # prefer central nodes, nodes with the most neighbors of the same color,
+    # etc. But I can't think of ways to prove that a particular solution is the
+    # minimum number of moves, or that there are only x solutions with n moves,
+    # etc. I think I'm just stupid right now and maybe need to come back to this
+    # after some thought over a few days. Here are random thoughts I had.
+    #
+    # I will say, the biggest idea I have is that most of the puzzles end up in
+    # this situation: there are disjoint groups of n colors (at least 2
+    # regions/nodes of each color) and n moves left. You then spend one move
+    # merging all of the nodes of one color and repeat. The simplest example
+    # would be a palindrome gradient; you would have to flood-fill the center
+    # node eating away until you reach the ends of the chain.
+    #
+    # If you think about the inverse of a move, you split a node into multiple
+    # nodes of the same color with a shared neighbor of a different color, but
+    # most importantly, the nodes of the same color are not connected, so you
+    # make a star of sorts.
+    #
+    # Also, the only way to delete/remove a color is to flood-fill it, which
+    # means it must have been reduced to a single node. Here's another thought.
+    # If a node is flood-filled to the color where only one neighbor is that
+    # color, then it's must more likely that it would be better to flood-fill
+    # the neighbor instead since it would likely have more neighbors of the
+    # former color.
+    #
+    # I can try looking at the graph focusing only on nodes of a certain color.
+    # But then again, I feel like it has the exact same complexity as looking at
+    # all colors at once.
+    #
+    # Finally, here's a random rant about an idea I had that doesn't seem
+    # fleshed out enough.
+    #
+    # The goal is to find the minimum numbers of moves to flood-fill the graph.
+    # To do this, we first take a pair of nodes u and v where the distance
+    # between them is the maximum possible (aka, the diameter of the graph).
+    # Given we know the distance between them is d(u, v), we know that a lower
+    # bound on the minimum number of moves required is `d(u, v) // 2` (the ideal
+    # case is where the path is a palindrome of colors where the middle node
+    # merges its neighbors each time). If the whole graph is solvable by some
+    # number of moves m, then the subgraph containing every path between u and v
+    # of length m or less must also be solvable in m moves. So my proposed
+    # algorithm is to increment m from the lower bound `d(u, v) // 2`
+    # indefinitely giving us a sequence of subgraphs made from paths between u
+    # and v of length <= m. For each subgraph, we brute force all possible
+    # colorings using m moves until we get a set of moves that flood-fills the
+    # subgraph with the required number of moves or less. Then we check if that
+    # set of moves works on the whole graph or now. we then take the subset of
+    # the graph that is all paths between them with length less than d(u, v).
+    # from can be reached , and slowly increase the number of allowed moves
+    # until all nodes are merged.
+
     # Breadth-first search
     # I know this puzzle can at least be solved in 5 iterations
     for iteration in range(5):
