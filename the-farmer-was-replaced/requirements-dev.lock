@@ -10,10 +10,22 @@
 #   universal: false
 
 -e file:.
+attrs==24.2.0
+    # via hypothesis
+hypothesis==6.112.1
+iniconfig==2.0.0
+    # via pytest
 mypy==1.11.2
 mypy-extensions==1.0.0
     # via mypy
+packaging==24.1
+    # via pytest
+pluggy==1.5.0
+    # via pytest
+pytest==8.3.3
 ruff==0.6.5
     # via the-farmer-was-replaced
+sortedcontainers==2.4.0
+    # via hypothesis
 typing-extensions==4.12.2
     # via mypy

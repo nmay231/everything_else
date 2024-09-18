@@ -16,6 +16,8 @@ managed = true
 dev-dependencies = [
     "ruff>=0.6.5",
     "mypy>=1.11.2",
+    "pytest>=8.3.3",
+    "hypothesis>=6.112.1",
 ]
 
 [tool.hatch.metadata]

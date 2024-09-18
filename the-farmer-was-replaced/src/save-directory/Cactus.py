@@ -9,28 +9,22 @@ def init_tile():
 
 
 def bubble_sort(forward, backward, get_pos):
-    _bubble_sort(forward, backward, get_pos, 0, get_world_size() - 1)
-
-
-def _bubble_sort(forward, backward, get_pos, start, end):
     while get_pos() > 0:
         move(backward)
 
-    while start < end:
-        for _ in range(end - start):
+    length = get_world_size() - 1
+    while length > 0:
+        for _ in range(length):
             if measure() > measure(forward):
                 swap(forward)
             move(forward)
 
-        end -= 1
-        for _ in range(end - start):
+        for _ in range(length):
             if measure() < measure(backward):
                 swap(backward)
             move(backward)
-
-        start += 1
-
-    return
+        move(forward)
+        length -= 2
 
 
 while True:
