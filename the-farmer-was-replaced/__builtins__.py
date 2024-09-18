@@ -643,7 +643,7 @@ def clear() -> None:
 
 
 # -------------------------------------------------------------------------------
-def get_companion() -> list[Tuple[Entities, float, float]] | None:
+def get_companion() -> list[Tuple[Entities, float, float]]:
     """
     Get the companion preference of the plant under the drone.
     returns a list of the form `[companion_type, companion_x_position, companion_y_position]`
@@ -693,19 +693,19 @@ def num_unlocked(thing: Unlocks | Entities | Grounds | Items) -> float:
 # -------------------------------------------------------------------------------
 def measure(
     direction: Optional[Literal[North, East, South, West]] = None,
-) -> float | None:
+) -> float:
     """
     Can measure some values on some entities. The effect of this depends on the entity.
     overloads:
-    `measure()`: measures the entity under the drone.
-    `measure(direction)`: measures the neighboring entity in the `direction` of the drone.
-    Sunflower: returns the number of petals.
-    Treasure: returns the next position.
-    Cactus: returns the size.
-    Dinosaur: returns the number corresponding to the type.
-    All other entities: returns `None`.
-    takes the time of `1` operation to execute.
-    example usage:
+    - `measure()`: measures the entity under the drone.
+    - `measure(direction)`: measures the neighboring entity in the `direction` of the drone.
+    - Sunflower: returns the number of petals.
+    - Treasure: returns the next position.
+    - Cactus: returns the size.
+    - Dinosaur: returns the number corresponding to the type.
+    - All other entities: returns `None`.
+
+    takes the time of `1` operation to execute. example usage:
     ```
     num_petals = measure()
     ```
