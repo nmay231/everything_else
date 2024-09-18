@@ -13,11 +13,12 @@ while True:
 
     to_check = []
     for _ in range(TILE_COUNT):
-        if not can_harvest():
+        if get_entity_type() == None:
             to_check.append((get_pos_x(), get_pos_y()))
-        elif get_entity_type() == None:
-            to_check.append((get_pos_x(), get_pos_y()))
+            trade(Items.Pumpkin_Seed)
             plant(Entities.Pumpkin)
+        elif not can_harvest():
+            to_check.append((get_pos_x(), get_pos_y()))
         move(North)
         if get_pos_y() == 0:
             move(East)
