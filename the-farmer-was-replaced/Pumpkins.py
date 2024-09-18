@@ -9,13 +9,20 @@ def init_tile():
 
 
 while True:
+    restock_empty_tanks()
+
     to_check = []
     for _ in range(TILE_COUNT):
-        if get_entity_type() == None or not can_harvest():
+        if not can_harvest():
             to_check.append((get_pos_x(), get_pos_y()))
+        elif get_entity_type() == None:
+            to_check.append((get_pos_x(), get_pos_y()))
+            plant(Entities.Pumpkin)
         move(North)
         if get_pos_y() == 0:
             move(East)
+        if get_water() < 0.25:
+            use_item(Items.Water_Tank)
 
     while len(to_check) > 0:
         x, y = to_check.pop(0)
