@@ -67,3 +67,15 @@ def test_bubblesort(row, start_index):
     bubble_sort(1, -1, lambda: state.index)
 
     assert state.row == sorted(row)
+
+
+def test_other(mocker):
+    mocker.patch("Cactus.CURRENT_LOOP", None)
+    from .save_directory.Cactus import bubble_sort
+
+    print(bubble_sort)
+
+
+# Scrap this. I think I should just add a main.py for running each crop thing
+# and refactor everything to do that. I should focus on work, but I can also add
+# credits real quick to 2hol-names before I do that.

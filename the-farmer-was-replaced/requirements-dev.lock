@@ -23,6 +23,8 @@ packaging==24.1
 pluggy==1.5.0
     # via pytest
 pytest==8.3.3
+    # via pytest-mock
+pytest-mock==3.14.0
 ruff==0.6.5
     # via the-farmer-was-replaced
 sortedcontainers==2.4.0

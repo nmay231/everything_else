@@ -1,4 +1,5 @@
 TILE_COUNT = get_world_size() ** 2
+CURRENT_LOOP = "cactus"
 
 stock_to(Items.Cactus_Seed, TILE_COUNT)
 clear_grid(Grounds.Soil, Entities.Cactus)
@@ -27,7 +28,7 @@ def bubble_sort(forward, backward, get_pos):
         length -= 2
 
 
-while True:
+while CURRENT_LOOP == "cactus":
     for _ in range(get_world_size()):
         bubble_sort(North, South, get_pos_y)
         move(East)
