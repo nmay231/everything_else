@@ -1,6 +1,4 @@
 clear_grid(Grounds.Turf)
 
 while True:
-	for_each(harvest)
-
-	
+    for_each(harvest)
