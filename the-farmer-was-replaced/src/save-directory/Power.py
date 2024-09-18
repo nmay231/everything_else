@@ -32,7 +32,11 @@ while True:
         if not can_harvest():
             while not can_harvest():
                 use_item(Items.Fertilizer)
-            while get_water() < 0.50 and num_items(Items.Water_Tank) > 0:
-                use_item(Items.Water_Tank)
+
+        # It would waste less water if we did this while planting, but it is
+        # better here so we can waste time while waiting to grow the next
+        # plants.
+        while get_water() < 0.50 and num_items(Items.Water_Tank) > 0:
+            use_item(Items.Water_Tank)
 
         harvest()
