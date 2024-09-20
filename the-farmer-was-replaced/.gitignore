@@ -11,3 +11,7 @@ wheels/
 
 # Game save file
 save.json
+
+# Files that only matter in-game
+scratch.py
+f0.py
