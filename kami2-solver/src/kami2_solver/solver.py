@@ -1,8 +1,7 @@
-import json
 import logging
 import math
 import pickle
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle, product, zip_longest
 from typing import Any, Collection, Generator, Iterable, Mapping, cast
@@ -346,98 +345,6 @@ graph.combine_neighbors(color_labels, average_color)
 
 
 @dataclass
-class FloodFillSearch:
-    graph: ColorGraph
-    steps: list[Node]
-    max_node_index: int
-    node_order: list[Node]
-    allowed_next_colors: list[ColorTup] | None = None
-
-    def has_more_colors_than(self, ceiling: int) -> bool:
-        if ceiling >= len(color_labels):
-            return False
-        return len({node.color for node in self.graph.connections.keys()}) > ceiling
-
-    def available_colors(self) -> list[ColorTup]:
-        if self.allowed_next_colors is None:
-            self.allowed_next_colors = sorted(color_labels.keys())
-        return self.allowed_next_colors
-
-    def with_colors(self, colors: list[ColorTup]) -> "FloodFillSearch":
-        return FloodFillSearch(
-            self.graph,
-            self.steps,
-            self.max_node_index,
-            allowed_next_colors=colors,
-            node_order=self.node_order,
-        )
-
-    def with_max_node_index(self, max_node_index: int) -> "FloodFillSearch":
-        return FloodFillSearch(
-            self.graph,
-            self.steps,
-            max_node_index,
-            allowed_next_colors=self.allowed_next_colors,
-            node_order=self.node_order,
-        )
-
-
-def json_default_serialize(unknown: Any) -> Any:
-    if isinstance(unknown, ColorGraph):
-        nodes = [node for node in unknown.connections]
-        node_index = {node: i for i, node in enumerate(nodes)}
-        connections = {
-            node_index[node]: [node_index[neighbor] for neighbor in neighbors]
-            for node, neighbors in unknown.connections.items()
-        }
-        return {"nodes": nodes, "connections": connections}
-    elif isinstance(unknown, (Node, FloodFillSearch)):
-        return unknown.__dict__
-    else:
-        raise TypeError(f"Unknown type {type(unknown)}")
-
-
-class Solver:
-    searches: list[FloodFillSearch] = []
-    search = FloodFillSearch(
-        graph, [], max_node_index=0, node_order=list(graph.connections.keys())
-    )
-    max_node_index = 0
-    step = 0
-    minimum_ceiling = len(graph.connections)
-
-    def make_step(self):
-        # self.step += 1
-
-        search = self.search
-        if search.max_node_index == -1 or search.has_more_colors_than(
-            self.minimum_ceiling - len(search.steps)
-        ):
-            self.search = self.pop_search()
-            return
-
-        available_colors = search.available_colors()
-        if not available_colors:
-            self.search = self.pop_search()
-            return
-        color, *available_colors = available_colors
-        self.searches.append(search.with_colors(available_colors))
-
-        # search.
-
-    def pop_search(self):
-        if not self.searches:
-            self.max_node_index += 1
-            return FloodFillSearch(
-                graph,
-                [],
-                max_node_index=self.max_node_index,
-                node_order=list(graph.connections.keys()),
-            )
-        return self.searches.pop()
-
-
-@dataclass
 class SolverStep:
     current_graph: ColorGraph
     steps: list[Node]
@@ -453,6 +360,9 @@ class SolverCache:
     node_ranking: list[Node]
     color_ranking: list[ColorTup]
 
+    def reorder_and_dedup_colors(self, colors: Collection[ColorTup]) -> list[ColorTup]:
+        return [color for color in self.color_ranking if color in colors]
+
 
 @dataclass
 class NewSearchInfo:
@@ -462,15 +372,14 @@ class NewSearchInfo:
     focused_node: Node
     untried_colors: list[ColorTup]
 
-    def reorder_colors(self, colors: Collection[ColorTup]) -> list[ColorTup]:
-        return [color for color in self.untried_colors if color in colors]
-
 
 def solver(graph: ColorGraph) -> Generator[SolverStep, None, None]:
-    colors = list(average_color.values())
+    # colors = list(average_color.values())
+    colors = list({node.color for node in graph.connections.keys()})
     cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
 
-    for first_node in range(0, len(graph.connections)):
+    # for first_node in range(0, len(graph.connections)):
+    for first_node in range(0, 1):
         # first_node acts as a ceiling that is slowly raised until every node
         # gets a chance to go first, while the inner function only decreases
         # max_node_rank.
@@ -499,8 +408,49 @@ def _solver(
     # We start by exhausting colors for the current node continuing until we
     # either solve the graph or hit the minimum ceiling. If we solve the graph,
     # then we update the minimum ceiling.
-    for color in []:
-        ...
+    for i, color in enumerate(search.untried_colors):
+        # To avoid doing both (green then red) and (red then green), we only
+        # allow colors later in the list and colors of newly exposed nodes
+        next_colors = search.untried_colors[i + 1 :]
+
+        for neigh in search.graph.connections[search.focused_node]:
+            if neigh.color != color:
+                continue
+
+            # Now watch me whip...
+            for neigh_neigh in search.graph.connections[neigh]:
+                if neigh_neigh == search.focused_node:
+                    continue
+                next_colors.append(neigh_neigh.color)
+
+        next_colors = cache.reorder_and_dedup_colors(next_colors)
+
+        # next_search = copy.copy(search)
+        # next_search.untried_colors = next_colors
+
+        next_graph, merged_node = search.graph.recolor_node_and_merge(
+            search.focused_node, color
+        )
+
+        next_search = NewSearchInfo(
+            graph=next_graph,
+            max_node_rank=search.max_node_rank,
+            chosen_nodes=search.chosen_nodes + [merged_node],
+            focused_node=merged_node,
+            untried_colors=next_colors,
+        )
+
+        found_solution = 1 == len(next_graph.connections)
+        step = SolverStep(next_graph, next_search.chosen_nodes, cache, found_solution)
+
+        if found_solution:
+            cache.minimum_ceiling = len(next_search.chosen_nodes)
+            yield step
+            return
+        else:
+            yield step
+
+        yield from _solver(cache, next_search)
 
 
 def _solver_try_new_nodes(
@@ -515,147 +465,6 @@ if __name__ == "__main__":
         level=logging.INFO, filename="kami2.log.ignore", format="%(message)s"
     )
 
-    # searches: list[FloodFillSearch] = []
-    # search = FloodFillSearch(
-    #     graph, [], max_node_index=1, node_order=list(graph.connections.keys())
-    # )
-    # max_node_index = 1
-
-    # logger.info(json.dumps(searches[0], default=json_default_serialize))
-    # step = 0
-    # minimum_ceiling = len(
-    #     graph.connections
-    # )  # Can take no longer than the number of nodes
-
-    while True:
-        step += 1
-        if step % 1000 == 0:
-            print(f"At step {step}, {minimum_ceiling=}, {len(searches)=}")
-
-        if search.max_node_index == 0:
-            search.max_node_index += 1
-
-    # The biggest reason why I am stuck on this problem is I can easily think of
-    # heuristics that will (probably) find a solution pretty quickly, e.g.
-    # prefer central nodes, nodes with the most neighbors of the same color,
-    # etc. But I can't think of ways to prove that a particular solution is the
-    # minimum number of moves, or that there are only x solutions with n moves,
-    # etc. I think I'm just stupid right now and maybe need to come back to this
-    # after some thought over a few days. Here are random thoughts I had.
-    #
-    # I will say, the biggest idea I have is that most of the puzzles end up in
-    # this situation: there are disjoint groups of n colors (at least 2
-    # regions/nodes of each color) and n moves left. You then spend one move
-    # merging all of the nodes of one color and repeat. The simplest example
-    # would be a palindrome gradient; you would have to flood-fill the center
-    # node eating away until you reach the ends of the chain.
-    #
-    # If you think about the inverse of a move, you split a node into multiple
-    # nodes of the same color with a shared neighbor of a different color, but
-    # most importantly, the nodes of the same color are not connected, so you
-    # make a star of sorts.
-    #
-    # Also, the only way to delete/remove a color is to flood-fill it, which
-    # means it must have been reduced to a single node. Here's another thought.
-    # If a node is flood-filled to the color where only one neighbor is that
-    # color, then it's must more likely that it would be better to flood-fill
-    # the neighbor instead since it would likely have more neighbors of the
-    # former color.
-    #
-    # I can try looking at the graph focusing only on nodes of a certain color.
-    # But then again, I feel like it has the exact same complexity as looking at
-    # all colors at once.
-    #
-    # Finally, here's a random rant about an idea I had that doesn't seem
-    # fleshed out enough.
-    #
-    # The goal is to find the minimum numbers of moves to flood-fill the graph.
-    # To do this, we first take a pair of nodes u and v where the distance
-    # between them is the maximum possible (aka, the diameter of the graph).
-    # Given we know the distance between them is d(u, v), we know that a lower
-    # bound on the minimum number of moves required is `d(u, v) // 2` (the ideal
-    # case is where the path is a palindrome of colors where the middle node
-    # merges its neighbors each time). If the whole graph is solvable by some
-    # number of moves m, then the subgraph containing every path between u and v
-    # of length m or less must also be solvable in m moves. So my proposed
-    # algorithm is to increment m from the lower bound `d(u, v) // 2`
-    # indefinitely giving us a sequence of subgraphs made from paths between u
-    # and v of length <= m. For each subgraph, we brute force all possible
-    # colorings using m moves until we get a set of moves that flood-fills the
-    # subgraph with the required number of moves or less. Then we check if that
-    # set of moves works on the whole graph or now. we then take the subset of
-    # the graph that is all paths between them with length less than d(u, v).
-    # from can be reached , and slowly increase the number of allowed moves
-    # until all nodes are merged.
-
-    # Breadth-first search
-    # I know this puzzle can at least be solved in 5 iterations
-    for iteration in range(5):
-        print(f"Iteration {iteration} ==============")
-
-        next_iteration: list[FloodFillSearch] = []
-        for search in searches:
-            # for node in search.graph.connections.keys():
-            for node in search.graph.exclude_impossible_starts(5 - iteration):
-                colors = {neighbor.color for neighbor in search.graph.connections[node]}
-                for color in colors:
-                    new_graph = search.graph.recolor_node_and_merge(node, color)
-
-                    assert len(new_graph.connections) < len(
-                        search.graph.connections
-                    ), "Flood fill should only remove nodes"
-                    assert all(
-                        n.color != neighbor.color
-                        for n in new_graph.connections
-                        for neighbor in new_graph.connections[n]
-                    ), "nodes should be merged"
-                    assert node not in new_graph.connections and all(
-                        node not in conn for conn in new_graph.connections.values()
-                    ), "node should be merged into a new node"
-
-                    new_search = FloodFillSearch(new_graph, search.steps + [node])
-                    logger.info(json.dumps(new_search, default=json_default_serialize))
-                    next_iteration.append(new_search)
-
-                    step += 1
-                    if step % 1000 == 0:
-                        print(
-                            f"Step {step}, with {len(searches) + len(next_iteration)} bifurcations remaining"
-                        )
-        searches = next_iteration
-
-    with open("kami2.json", "w") as f:
-        json.dump(searches, f, default=json_default_serialize)
-
-    exit()
-
-    largest_neighborhood = max(graph.connections.items(), key=lambda x: len(x[1]))
-    center, neighbors = largest_neighborhood
-    common_color = Counter(node.color for node in neighbors).most_common(1)[0][0]
-
-    backup = edges.copy()
-    draw = ImageDraw.Draw(edges)
-    for a, bs in graph.connections.items():
-        color = a.color
-        radius = 30 if a == center else 8
-        draw.circle(a.center, fill=color, radius=radius, outline="black", width=2)
-
-        width = 10 if a == center else 2
-        for b in bs:
-            fill = "blue" if a == center and b.color == common_color else "black"
-            draw.line(a.center + b.center, fill=fill, width=width)
-
-    # color_labels = {color: label for label, color in average_color.items()}
-    edges.show()
-
-    graph = graph.recolor_node_and_merge(center, common_color)
-
-    draw = ImageDraw.Draw(backup)
-
-    for a, bs in graph.connections.items():
-        color = a.color
-        draw.circle(a.center, fill=color, radius=8, outline="black", width=2)
-
-        for b in bs:
-            draw.line(a.center + b.center, fill="black", width=5)
-    backup.show()
+    for step_n, step in enumerate(solver(graph), 1):
+        if step_n % 1000 == 0:
+            print(f"{step_n=} blah blah blah")
