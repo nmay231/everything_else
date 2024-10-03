@@ -5,7 +5,7 @@ import pickle
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import cycle, product, zip_longest
-from typing import Any, Iterable, Mapping, cast
+from typing import Any, Collection, Generator, Iterable, Mapping, cast
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from PIL.Image import Image as ImageType
@@ -16,6 +16,8 @@ from sklearn.cluster import AgglomerativeClustering
 dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, ImageFont}
 
 random_colors = cycle(["red", "blue", "green", "yellow"])
+
+type ColorTup = tuple[int, int, int]
 
 
 # https://stackoverflow.com/questions/1574458/python-object-that-monitors-changes-in-objects
@@ -31,9 +33,7 @@ class ChangeDetector:
         self.objects[id(obj)] = current_pickle
 
 
-def get_mean_color(
-    image: ImageType, point: tuple[float, float]
-) -> tuple[int, int, int] | None:
+def get_mean_color(image: ImageType, point: tuple[float, float]) -> ColorTup | None:
     RAD = 10
     minx = max(0, point[0] - RAD)
     miny = max(0, point[1] - RAD)
@@ -52,12 +52,12 @@ def get_mean_color(
 @dataclass
 class Node:
     center: tuple[float, float]
-    color: tuple[int, int, int]
+    color: ColorTup
 
     def __hash__(self):
         return hash(self.center)
 
-    def with_color(self, color: tuple[int, int, int]) -> "Node":
+    def with_color(self, color: ColorTup) -> "Node":
         return Node(self.center, color)
 
 
@@ -71,8 +71,8 @@ class ColorGraph:
 
     def combine_neighbors(
         self,
-        color_labels: dict[tuple[int, int, int], int],
-        average_color: dict[int, tuple[int, int, int]],
+        color_labels: dict[ColorTup, int],
+        average_color: dict[int, ColorTup],
     ):
         """I guess after this point, nodes aren't represented by their centers
         anymore"""
@@ -130,8 +130,8 @@ class ColorGraph:
             return nodes
 
     def recolor_node_and_merge(
-        self, to_recolor: Node, color: tuple[int, int, int]
-    ) -> "ColorGraph":
+        self, to_recolor: Node, color: ColorTup
+    ) -> tuple["ColorGraph", Node]:
         recolored = to_recolor.with_color(color)
         to_merge = {
             node for node in self.connections[to_recolor] if node.color == color
@@ -158,7 +158,7 @@ class ColorGraph:
         # not. But I don't want to do that right now.
         result = ColorGraph.__new__(ColorGraph)
         result.connections = connections
-        return result
+        return (result, recolored)
 
     def distance_matrix(
         self, indexes_: dict[Node, int] | None = None
@@ -234,7 +234,7 @@ class ColorGraph:
         yield from eccentricities.keys()
 
 
-image = Image.open("kami2.jpg")
+image = Image.open("kami2.ignore.jpg")
 
 # Prepare for ALL the magic numbers
 edges = image.crop((0, 146, image.width, image.height - 383))
@@ -304,7 +304,7 @@ model = AgglomerativeClustering(distance_threshold=500, n_clusters=None)
 model.fit(cast(Any, used_colors))
 print(f"Discovered {model.n_clusters_} colors")
 
-color_labels: dict[tuple[int, int, int], int] = dict(zip(used_colors, model.labels_))
+color_labels: dict[ColorTup, int] = dict(zip(used_colors, model.labels_))
 
 # print(model.labels_)
 
@@ -321,7 +321,8 @@ for i, (color, label) in enumerate(color_labels.items()):
 
 # palette.show()
 
-average_color: dict[int, tuple[int, int, int]] = {}
+# TODO: Turn into a list of length model.n_clusters_
+average_color: dict[int, ColorTup] = {}
 
 for i in range(model.n_clusters_):
     colors = [color for color in used_colors if color_labels[color] == i]
@@ -348,6 +349,37 @@ graph.combine_neighbors(color_labels, average_color)
 class FloodFillSearch:
     graph: ColorGraph
     steps: list[Node]
+    max_node_index: int
+    node_order: list[Node]
+    allowed_next_colors: list[ColorTup] | None = None
+
+    def has_more_colors_than(self, ceiling: int) -> bool:
+        if ceiling >= len(color_labels):
+            return False
+        return len({node.color for node in self.graph.connections.keys()}) > ceiling
+
+    def available_colors(self) -> list[ColorTup]:
+        if self.allowed_next_colors is None:
+            self.allowed_next_colors = sorted(color_labels.keys())
+        return self.allowed_next_colors
+
+    def with_colors(self, colors: list[ColorTup]) -> "FloodFillSearch":
+        return FloodFillSearch(
+            self.graph,
+            self.steps,
+            self.max_node_index,
+            allowed_next_colors=colors,
+            node_order=self.node_order,
+        )
+
+    def with_max_node_index(self, max_node_index: int) -> "FloodFillSearch":
+        return FloodFillSearch(
+            self.graph,
+            self.steps,
+            max_node_index,
+            allowed_next_colors=self.allowed_next_colors,
+            node_order=self.node_order,
+        )
 
 
 def json_default_serialize(unknown: Any) -> Any:
@@ -359,22 +391,149 @@ def json_default_serialize(unknown: Any) -> Any:
             for node, neighbors in unknown.connections.items()
         }
         return {"nodes": nodes, "connections": connections}
-    elif isinstance(unknown, Node):
-        return {"center": unknown.center, "color": unknown.color}
-    elif isinstance(unknown, FloodFillSearch):
-        return {"graph": unknown.graph, "steps": unknown.steps}
+    elif isinstance(unknown, (Node, FloodFillSearch)):
+        return unknown.__dict__
     else:
         raise TypeError(f"Unknown type {type(unknown)}")
+
+
+class Solver:
+    searches: list[FloodFillSearch] = []
+    search = FloodFillSearch(
+        graph, [], max_node_index=0, node_order=list(graph.connections.keys())
+    )
+    max_node_index = 0
+    step = 0
+    minimum_ceiling = len(graph.connections)
+
+    def make_step(self):
+        # self.step += 1
+
+        search = self.search
+        if search.max_node_index == -1 or search.has_more_colors_than(
+            self.minimum_ceiling - len(search.steps)
+        ):
+            self.search = self.pop_search()
+            return
+
+        available_colors = search.available_colors()
+        if not available_colors:
+            self.search = self.pop_search()
+            return
+        color, *available_colors = available_colors
+        self.searches.append(search.with_colors(available_colors))
+
+        # search.
+
+    def pop_search(self):
+        if not self.searches:
+            self.max_node_index += 1
+            return FloodFillSearch(
+                graph,
+                [],
+                max_node_index=self.max_node_index,
+                node_order=list(graph.connections.keys()),
+            )
+        return self.searches.pop()
+
+
+@dataclass
+class SolverStep:
+    current_graph: ColorGraph
+    steps: list[Node]
+    state: "SolverCache"
+    found_a_solution: bool
+
+
+@dataclass
+class SolverCache:
+    """A mix of cache and state that affects a solve globally"""
+
+    minimum_ceiling: int
+    node_ranking: list[Node]
+    color_ranking: list[ColorTup]
+
+
+@dataclass
+class NewSearchInfo:
+    graph: ColorGraph
+    max_node_rank: int
+    chosen_nodes: list[Node]
+    focused_node: Node
+    untried_colors: list[ColorTup]
+
+    def reorder_colors(self, colors: Collection[ColorTup]) -> list[ColorTup]:
+        return [color for color in self.untried_colors if color in colors]
+
+
+def solver(graph: ColorGraph) -> Generator[SolverStep, None, None]:
+    colors = list(average_color.values())
+    cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
+
+    for first_node in range(0, len(graph.connections)):
+        # first_node acts as a ceiling that is slowly raised until every node
+        # gets a chance to go first, while the inner function only decreases
+        # max_node_rank.
+        focused_node = cache.node_ranking[first_node]
+        untried_colors = [*colors]
+        search = NewSearchInfo(
+            graph,
+            max_node_rank=first_node,
+            chosen_nodes=[],
+            focused_node=focused_node,
+            untried_colors=untried_colors,
+        )
+        # new_graph, replacement_node = graph.recolor_node_and_merge(node, color)
+        yield from _solver(cache, search)
+
+
+def _solver(
+    cache: SolverCache,
+    search: NewSearchInfo,
+    # start_node: Node,
+    # try_changing: Literal["colors", "nodes"],
+) -> Generator[SolverStep, None, None]:
+    # We yield whenever we FF a node. This allows for a progress bar of sorts.
+    # We also need an early return if we are already at the minimum ceiling.
+
+    # We start by exhausting colors for the current node continuing until we
+    # either solve the graph or hit the minimum ceiling. If we solve the graph,
+    # then we update the minimum ceiling.
+    for color in []:
+        ...
+
+
+def _solver_try_new_nodes(
+    graph: ColorGraph, state: SolverCache
+) -> Generator[SolverStep, None, None]: ...
 
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     # Each line will be json so I can parse with jq
-    logging.basicConfig(level=logging.INFO, filename="kami2.log", format="%(message)s")
+    logging.basicConfig(
+        level=logging.INFO, filename="kami2.log.ignore", format="%(message)s"
+    )
 
-    searches = [FloodFillSearch(graph, [])]
-    logger.info(json.dumps(searches[0], default=json_default_serialize))
-    step = 0
+    # searches: list[FloodFillSearch] = []
+    # search = FloodFillSearch(
+    #     graph, [], max_node_index=1, node_order=list(graph.connections.keys())
+    # )
+    # max_node_index = 1
+
+    # logger.info(json.dumps(searches[0], default=json_default_serialize))
+    # step = 0
+    # minimum_ceiling = len(
+    #     graph.connections
+    # )  # Can take no longer than the number of nodes
+
+    while True:
+        step += 1
+        if step % 1000 == 0:
+            print(f"At step {step}, {minimum_ceiling=}, {len(searches)=}")
+
+        if search.max_node_index == 0:
+            search.max_node_index += 1
 
     # The biggest reason why I am stuck on this problem is I can easily think of
     # heuristics that will (probably) find a solution pretty quickly, e.g.
