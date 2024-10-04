@@ -232,6 +232,11 @@ class ColorGraph:
         # many highly eccentric nodes that matters? Ugh...
         yield from eccentricities.keys()
 
+    def n_edges(self) -> int:
+        double_count = sum(len(neigh) for neigh in self.connections.values())
+        assert not (double_count & 1), "Double counted edges should be even"
+        return double_count // 2
+
 
 image = Image.open("kami2.ignore.jpg")
 
@@ -378,8 +383,7 @@ def solver(graph: ColorGraph) -> Generator[SolverStep, None, None]:
     colors = list({node.color for node in graph.connections.keys()})
     cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
 
-    # for first_node in range(0, len(graph.connections)):
-    for first_node in range(0, 1):
+    for first_node in range(0, len(graph.connections)):
         # first_node acts as a ceiling that is slowly raised until every node
         # gets a chance to go first, while the inner function only decreases
         # max_node_rank.
@@ -392,16 +396,18 @@ def solver(graph: ColorGraph) -> Generator[SolverStep, None, None]:
             focused_node=focused_node,
             untried_colors=untried_colors,
         )
-        # new_graph, replacement_node = graph.recolor_node_and_merge(node, color)
         yield from _solver(cache, search)
 
 
 def _solver(
     cache: SolverCache,
     search: NewSearchInfo,
-    # start_node: Node,
-    # try_changing: Literal["colors", "nodes"],
+    previously_flooded: bool = False,
 ) -> Generator[SolverStep, None, None]:
+    if len(search.chosen_nodes) == cache.minimum_ceiling:
+        # If we don't care how many solutions there are, but just the minimum
+        # number of FFs.
+        return
     # We yield whenever we FF a node. This allows for a progress bar of sorts.
     # We also need an early return if we are already at the minimum ceiling.
 
@@ -425,9 +431,6 @@ def _solver(
 
         next_colors = cache.reorder_and_dedup_colors(next_colors)
 
-        # next_search = copy.copy(search)
-        # next_search.untried_colors = next_colors
-
         next_graph, merged_node = search.graph.recolor_node_and_merge(
             search.focused_node, color
         )
@@ -450,7 +453,12 @@ def _solver(
         else:
             yield step
 
-        yield from _solver(cache, next_search)
+        yield from _solver(cache, next_search, True)
+
+    if previously_flooded:
+        for max_node_rank in range(search.max_node_rank - 1, -1, -1):
+            search.max_node_rank = max_node_rank
+            yield from _solver(cache, search)
 
 
 def _solver_try_new_nodes(

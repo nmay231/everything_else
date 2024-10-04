@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import pytest
 
 from kami2_solver.solver import ColorGraph, Node, solver
@@ -196,16 +198,49 @@ def test_solver():
 
     # Just a sanity check
     assert len(graph.connections) == 6
-    assert sum(len(neigh) for neigh in graph.connections.values()) // 2 == 8
+    assert graph.n_edges() == 8
 
     assert list(graph.connections.keys()) == [r1, g2, g3, b4, r5, g6]
 
-    # solutions = 0
-    minimum = 0
-    for step in solver(graph):
-        minimum = step.state.minimum_ceiling
-        # if step.found_a_solution:
-        #     print(step.current_graph.connections)
-        #     solutions += 1
+    for index, step in enumerate(solver(graph)):
+        ...
 
-    assert minimum == 4
+    print(f"Simple example took {index} steps")
+    assert step.state.minimum_ceiling == 3
+
+
+@pytest.mark.parametrize("size", range(1, 7))
+@pytest.mark.parametrize("checkerboard", [True, False])
+def test_solver_palindrome(size: int, checkerboard: bool):
+    # If checkerboard is True:
+    # a -- b -- a -- b -- a
+    # If checkerboard is False:
+    # c -- b -- a -- b -- c
+
+    # Either way, the minimum number of moves is equal to size
+    middle = Node((0, 0), (0, 0, 0))
+    prev = (middle, middle)
+    connections = defaultdict(set)
+    for index in range(1, size + 1):
+        color = (index % 2, 0, 0) if checkerboard else (index, 0, 0)
+
+        left = Node((index, 1), color)
+        right = Node((index, 2), color)
+        connections[left].add(prev[0])
+        connections[right].add(prev[1])
+        prev = (left, right)
+
+    graph = ColorGraph(connections)
+
+    # Sanity check
+    assert len(graph.connections) == size * 2 + 1
+    assert graph.n_edges() == size * 2
+    assert len(set(node.color for node in graph.connections.keys())) == (
+        2 if checkerboard else size + 1
+    )
+
+    for index, step in enumerate(solver(graph)):
+        ...
+
+    print(f"palindrome {size=} {index=}")
+    assert step.state.minimum_ceiling == size
