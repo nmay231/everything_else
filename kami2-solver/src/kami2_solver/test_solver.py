@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import pytest
 
-from kami2_solver.solver import ColorGraph, Node, solver
+from kami2_solver.solver import ColorGraph, Node, solve
 
 
 def test_flood_fill():
@@ -202,7 +202,7 @@ def test_solver():
 
     assert list(graph.connections.keys()) == [r1, g2, g3, b4, r5, g6]
 
-    for index, step in enumerate(solver(graph)):
+    for index, step in enumerate(solve(graph)):
         ...
 
     print(f"Simple example took {index} steps")
@@ -239,7 +239,7 @@ def test_solver_palindrome(size: int, checkerboard: bool):
         2 if checkerboard else size + 1
     )
 
-    for index, step in enumerate(solver(graph)):
+    for index, step in enumerate(solve(graph)):
         ...
 
     print(f"palindrome {size=} {index=}")
