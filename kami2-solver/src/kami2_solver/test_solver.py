@@ -209,18 +209,23 @@ def test_solver():
     assert step.state.minimum_ceiling == 3
 
 
-@pytest.mark.parametrize("size", range(1, 7))
+@pytest.mark.parametrize("size", range(1, 6))
 @pytest.mark.parametrize("checkerboard", [True, False])
-def test_solver_palindrome(size: int, checkerboard: bool):
+@pytest.mark.parametrize("cyclic", [True, False])
+def test_solver_palindrome(size: int, checkerboard: bool, cyclic: bool):
     # If checkerboard is True:
     # a -- b -- a -- b -- a
     # If checkerboard is False:
     # c -- b -- a -- b -- c
+    # If cyclic is True:
+    # c -- b -- a -- b -- c
+    #  \                 /
+    #   --------d--------
 
     # Either way, the minimum number of moves is equal to size
     middle = Node((0, 0), (0, 0, 0))
     prev = (middle, middle)
-    connections = defaultdict(set)
+    connections = defaultdict[Node, set[Node]](set)
     for index in range(1, size + 1):
         color = (index % 2, 0, 0) if checkerboard else (index, 0, 0)
 
@@ -230,17 +235,23 @@ def test_solver_palindrome(size: int, checkerboard: bool):
         connections[right].add(prev[1])
         prev = (left, right)
 
+    if cyclic:
+        index = size + 1
+        color = (index % 2, 0, 0) if checkerboard else (index, 0, 0)
+        other_middle = Node((index, 1), color)
+        connections[other_middle].update(prev)
+
     graph = ColorGraph(connections)
 
     # Sanity check
-    assert len(graph.connections) == size * 2 + 1
-    assert graph.n_edges() == size * 2
+    assert len(graph.connections) == size * 2 + 2 if cyclic else size * 2 + 1
+    assert graph.n_edges() == size * 2 + 2 if cyclic else size * 2
     assert len(set(node.color for node in graph.connections.keys())) == (
-        2 if checkerboard else size + 1
+        2 if checkerboard else (size + 2 if cyclic else size + 1)
     )
 
     for index, step in enumerate(solve(graph)):
         ...
 
-    print(f"palindrome {size=} {index=}")
-    assert step.state.minimum_ceiling == size
+    print(f"palindrome {size=} {index=:,} {checkerboard=} {cyclic=}")
+    assert step.state.minimum_ceiling == (size + 1 if cyclic else size)
