@@ -176,20 +176,15 @@ class ColorGraph:
 
         return eccentricity
 
-    def exclude_impossible_starts(self, moves_left: int) -> Iterable[Node]:
-        eccentricities = self.eccentricities()
-        if max(eccentricities.values()) > 2 * moves_left:
-            # A move can only reduce eccentricity by at most 2, so any move set
-            # would leave more than 2 nodes after the flood fill.
-            return
-
-        # TODO: I thought there was a way to filter out high eccentricity nodes
-        # here, but that's only valid if we know that focusing on that node will
-        # leave another one with connections. Maybe there's something about how
-        # many highly eccentric nodes that matters? Ugh...
-        yield from eccentricities.keys()
-
     def n_edges(self) -> int:
         double_count = sum(len(neigh) for neigh in self.connections.values())
         assert not (double_count & 1), "Double counted edges should be even"
         return double_count // 2
+
+    def bad_starting_nodes(self, allowed_moves: int) -> set[Node]:
+        eccentricities = self.eccentricities()
+        return {
+            node
+            for node, eccentricity in eccentricities.items()
+            if eccentricity > allowed_moves
+        }

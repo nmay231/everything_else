@@ -109,10 +109,12 @@ def _solve(
         yield from _solve(cache, next_search, True)
 
     if previously_flooded:
+        allowed_moves = cache.minimum_ceiling - len(search.chosen_nodes)
+        bad_starts = search.graph.bad_starting_nodes(allowed_moves)
         starting_nodes = [
             node
             for node in search.other_allowed_nodes
-            if node in search.graph.connections
+            if node not in bad_starts and node in search.graph.connections
         ]
 
         for focused_node in reversed(starting_nodes):
