@@ -168,7 +168,19 @@ def test_eccentricities_clique(size: int):
     assert graph.eccentricities() == expected
 
 
-def test_solver():
+def test_filtering_bad_starting_nodes():
+    connections = defaultdict[Node, set[Node]](set)
+    nodes = [Node((index, 0), (index, 0, 0)) for index in range(1, 6)]
+    for a, b in zip(nodes, nodes[1:]):
+        connections[a].add(b)
+    graph = ColorGraph(connections)
+
+    assert graph.bad_starting_nodes(allowed_moves=1) == set(nodes)
+    assert graph.bad_starting_nodes(allowed_moves=2) == set(nodes[:2] + nodes[3:])
+    assert graph.bad_starting_nodes(allowed_moves=3) == set(nodes[:1] + nodes[4:])
+
+
+def test_solver_simple():
     # r1 ----- g2
     #  \       |
     #   \      |
@@ -255,3 +267,20 @@ def test_solver_palindrome(size: int, checkerboard: bool, cyclic: bool):
 
     print(f"palindrome {size=} {index=:,} {checkerboard=} {cyclic=}")
     assert step.state.minimum_ceiling == (size + 1 if cyclic else size)
+
+
+@pytest.mark.parametrize("size", range(1, 6))
+def test_solver_change_current_node(size: int):
+    # a -- b -- a -- c -- a -- ...
+
+    nodes = [Node((0, 1), (0, 0, 0))]
+    for i in range(size):
+        nodes.extend([Node((i, 2), (i, 0, 0)), Node((i, 1), (0, 0, 0))])
+    connections = {a: [b] for a, b in zip(nodes, nodes[1:])}
+    graph = ColorGraph(connections)
+
+    for index, step in enumerate(solve(graph)):
+        ...
+
+    print(f"change current node {size=} {index=:,}")
+    assert step.state.minimum_ceiling == size

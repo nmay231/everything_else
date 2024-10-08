@@ -26,30 +26,29 @@ class SolverCache:
 
 
 @dataclass
-class NewSearchInfo:
+class SearchInfo:
     graph: ColorGraph
-    max_node_rank: int
     chosen_nodes: list[Node]
     focused_node: Node
+    other_allowed_nodes: list[Node]
     untried_colors: list[ColorTup]
 
 
 def solve(graph: ColorGraph) -> Generator[SolverStep, None, None]:
-    # colors = list(average_color.values())
     colors = list({node.color for node in graph.connections.keys()})
     cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
 
-    for first_node in range(0, len(graph.connections)):
-        # first_node acts as a ceiling that is slowly raised until every node
-        # gets a chance to go first, while the inner function only decreases
-        # max_node_rank.
-        focused_node = cache.node_ranking[first_node]
-        untried_colors = [*colors]
-        search = NewSearchInfo(
+    for length in range(len(graph.connections) - 1):
+        allowed_nodes = cache.node_ranking[:length]
+        focused_node = cache.node_ranking[length]
+        neighbor_colors = {node.color for node in graph.connections[focused_node]}
+        untried_colors = cache.reorder_and_dedup_colors(neighbor_colors)
+
+        search = SearchInfo(
             graph,
-            max_node_rank=first_node,
             chosen_nodes=[],
             focused_node=focused_node,
+            other_allowed_nodes=allowed_nodes,
             untried_colors=untried_colors,
         )
         yield from _solve(cache, search)
@@ -57,15 +56,13 @@ def solve(graph: ColorGraph) -> Generator[SolverStep, None, None]:
 
 def _solve(
     cache: SolverCache,
-    search: NewSearchInfo,
+    search: SearchInfo,
     previously_flooded: bool = False,
 ) -> Generator[SolverStep, None, None]:
     if len(search.chosen_nodes) == cache.minimum_ceiling:
         # If we don't care how many solutions there are, but just the minimum
         # number of FFs.
         return
-    # We yield whenever we FF a node. This allows for a progress bar of sorts.
-    # We also need an early return if we are already at the minimum ceiling.
 
     # We start by exhausting colors for the current node continuing until we
     # either solve the graph or hit the minimum ceiling. If we solve the graph,
@@ -91,11 +88,11 @@ def _solve(
             search.focused_node, color
         )
 
-        next_search = NewSearchInfo(
+        next_search = SearchInfo(
             graph=next_graph,
-            max_node_rank=search.max_node_rank,
             chosen_nodes=search.chosen_nodes + [merged_node],
             focused_node=merged_node,
+            other_allowed_nodes=search.other_allowed_nodes,
             untried_colors=next_colors,
         )
 
@@ -112,6 +109,19 @@ def _solve(
         yield from _solve(cache, next_search, True)
 
     if previously_flooded:
-        for max_node_rank in range(search.max_node_rank - 1, -1, -1):
-            search.max_node_rank = max_node_rank
+        starting_nodes = [
+            node
+            for node in search.other_allowed_nodes
+            if node in search.graph.connections
+        ]
+
+        for focused_node in reversed(starting_nodes):
+            # Probably not good to modify while iterating, but whatever
+            starting_nodes.pop()
+
+            search.focused_node = focused_node
+            search.other_allowed_nodes = starting_nodes
+            search.untried_colors = cache.reorder_and_dedup_colors(
+                {node.color for node in search.graph.connections[focused_node]}
+            )
             yield from _solve(cache, search)
