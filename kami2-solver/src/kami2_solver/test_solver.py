@@ -218,7 +218,7 @@ def test_solver_simple():
         ...
 
     print(f"Simple example took {index} steps")
-    assert step.state.minimum_ceiling == 3
+    assert step.cache.minimum_ceiling == 3
 
 
 @pytest.mark.parametrize("size", range(1, 6))
@@ -266,7 +266,7 @@ def test_solver_palindrome(size: int, checkerboard: bool, cyclic: bool):
         ...
 
     print(f"palindrome {size=} {index=:,} {checkerboard=} {cyclic=}")
-    assert step.state.minimum_ceiling == (size + 1 if cyclic else size)
+    assert step.cache.minimum_ceiling == (size + 1 if cyclic else size)
 
 
 @pytest.mark.parametrize("size", range(1, 6))
@@ -283,4 +283,4 @@ def test_solver_change_current_node(size: int):
         ...
 
     print(f"change current node {size=} {index=:,}")
-    assert step.state.minimum_ceiling == size
+    assert step.cache.minimum_ceiling == size

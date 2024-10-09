@@ -8,8 +8,8 @@ from .utils import ColorTup
 @dataclass
 class SolverStep:
     current_graph: ColorGraph
-    steps: list[Node]
-    state: "SolverCache"
+    moves: list[Node]
+    cache: "SolverCache"
     found_a_solution: bool
 
 
@@ -34,8 +34,16 @@ class SearchInfo:
     untried_colors: list[ColorTup]
 
 
-def solve(graph: ColorGraph) -> Generator[SolverStep, None, None]:
+def solve(
+    graph: ColorGraph,
+    *,
+    color_ranking: list[ColorTup] | None = None,
+) -> Generator[SolverStep, None, None]:
     colors = list({node.color for node in graph.connections.keys()})
+    if color_ranking is not None:
+        assert set(color_ranking) == set(colors)
+        colors = color_ranking
+
     cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
 
     for length in range(len(graph.connections) - 1):

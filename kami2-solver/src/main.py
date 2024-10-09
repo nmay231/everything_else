@@ -1,5 +1,8 @@
+import json
 import logging
 import math
+import sys
+import time
 from collections import defaultdict
 from itertools import cycle, product, zip_longest
 from typing import Any, cast
@@ -10,8 +13,8 @@ from PIL.ImageStat import Stat
 from sklearn.cluster import AgglomerativeClustering
 
 from kami2_solver.graph import ColorGraph, Node
-from kami2_solver.solver import solve
-from kami2_solver.utils import ColorTup, get_mean_color
+from kami2_solver.solver import SolverStep, solve
+from kami2_solver.utils import ColorTup, get_mean_color, make_json_serializer
 
 # F'in Pylance can't auto import but it keeps removing it from imports
 dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, ImageFont}
@@ -19,7 +22,7 @@ dont_remove_from_imports = {Image, ImageFilter, ImageDraw, Stat, ImageType, Imag
 random_colors = cycle(["red", "blue", "green", "yellow"])
 
 
-image = Image.open("kami2.ignore.jpg")
+image = Image.open(sys.argv[1])
 
 # Prepare for ALL the magic numbers
 edges = image.crop((0, 146, image.width, image.height - 383))
@@ -129,14 +132,76 @@ inverted_colors = {
 
 graph.combine_neighbors(color_labels, average_color)
 
+logger = logging.getLogger(__name__)
+# Each line will be json so I can parse with jq
+filename = sys.argv[1].replace(".jpg", ".log")
+logging.basicConfig(level=logging.INFO, filename=filename, format="%(message)s")
 
-if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    # Each line will be json so I can parse with jq
-    logging.basicConfig(
-        level=logging.INFO, filename="kami2.ignore.log", format="%(message)s"
+color_map = {color: i for i, color in average_color.items()}
+serialize = make_json_serializer(color_map)
+
+color_ranking = list({node.color for node in graph.connections.keys()})
+solve_process = solve(graph, color_ranking=color_ranking)
+
+a_solution: SolverStep | None = None
+start = time.time()
+for step_n, step in enumerate(solve_process, 1):
+    if step_n % 1000 == 0:
+        print(f"{step_n=} {step.cache.minimum_ceiling=}")
+
+    if step.found_a_solution:
+        a_solution = step
+        logger.info(json.dumps(step, default=serialize))
+
+duration = time.time() - start
+print(f"Took {duration:.2f} seconds")
+
+if a_solution is None:
+    print("No solution found")
+    exit(1)
+
+print(
+    f"Minimum number of moves: {a_solution.cache.minimum_ceiling} {a_solution.moves}, total iterations: {step_n}. {color_ranking=}"
+)
+
+moves = a_solution.moves
+
+font = ImageFont.truetype("arial.ttf", 30)
+draw = ImageDraw.Draw(edges)
+
+previous = set()
+for i, move in enumerate(moves, start=1):
+    center = move.center
+    color = move.color
+
+    start_of_arc: tuple[float, float] | None = None
+    while center in previous:
+        start_of_arc = start_of_arc or center
+        center = (center[0] + 50, center[1])
+    previous.add(center)
+
+    if start_of_arc is not None:
+        height = (center[0] - start_of_arc[0]) / 3
+        draw.arc(
+            [
+                start_of_arc[0],
+                start_of_arc[1] - height,
+                center[0],
+                center[1] + height,
+            ],
+            start=0,
+            end=180,
+            fill="purple",
+            width=10,
+        )
+
+    draw.circle(center, 30, fill=color, width=2)
+    draw.text(
+        center,
+        str(i),
+        fill="black",
+        font=font,
+        anchor="mm",
     )
 
-    for step_n, step in enumerate(solve(graph), 1):
-        if step_n % 1000 == 0:
-            print(f"{step_n=} blah blah blah")
+edges.show()
