@@ -19,3 +19,4 @@ yarn-error.log*
 
 # Escape hatch to ignore random files
 *.ignore.*
+*.ignore/
