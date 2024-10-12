@@ -10,28 +10,60 @@
 #   universal: false
 
 -e file:.
+asttokens==2.4.1
+    # via stack-data
 attrs==24.2.0
     # via hypothesis
+decorator==5.1.1
+    # via ipython
+executing==2.1.0
+    # via stack-data
 hypothesis==6.111.0
 iniconfig==2.0.0
     # via pytest
+ipython==8.28.0
+jedi==0.19.1
+    # via ipython
 joblib==1.4.2
     # via scikit-learn
+matplotlib-inline==0.1.7
+    # via ipython
 numpy==2.0.1
     # via scikit-learn
     # via scipy
 packaging==24.1
     # via pytest
+parso==0.8.4
+    # via jedi
+pexpect==4.9.0
+    # via ipython
 pillow==10.4.0
     # via kami2-solver
 pluggy==1.5.0
     # via pytest
+prompt-toolkit==3.0.48
+    # via ipython
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.3
+    # via stack-data
+pygments==2.18.0
+    # via ipython
 pytest==8.3.2
 scikit-learn==1.5.1
     # via kami2-solver
 scipy==1.14.0
     # via scikit-learn
+six==1.16.0
+    # via asttokens
 sortedcontainers==2.4.0
     # via hypothesis
+stack-data==0.6.3
+    # via ipython
 threadpoolctl==3.5.0
     # via scikit-learn
+traitlets==5.14.3
+    # via ipython
+    # via matplotlib-inline
+wcwidth==0.2.13
+    # via prompt-toolkit

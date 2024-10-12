@@ -131,6 +131,8 @@ inverted_colors = {
 }
 
 graph.combine_neighbors(color_labels, average_color)
+graph_size = len(graph.connections)
+print(f"There are a total of {graph_size} nodes")
 
 logger = logging.getLogger(__name__)
 # Each line will be json so I can parse with jq
@@ -147,7 +149,9 @@ a_solution: SolverStep | None = None
 start = time.time()
 for step_n, step in enumerate(solve_process, 1):
     if step_n % 1000 == 0:
-        print(f"{step_n=} {step.cache.minimum_ceiling=}")
+        print(
+            f"{step.cache.minimum_ceiling=} node_pool_progress={step.cache.node_pool_size}/{graph_size} {step_n=:,}"
+        )
 
     if step.found_a_solution:
         a_solution = step

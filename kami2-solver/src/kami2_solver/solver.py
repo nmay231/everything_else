@@ -18,8 +18,14 @@ class SolverCache:
     """A mix of cache and state that affects a solve globally"""
 
     minimum_ceiling: int
+    """A ceiling on the minimum number of moves to get a solution"""
     node_ranking: list[Node]
+    """An arbitrary ordering of nodes (to avoid duplicate work)"""
     color_ranking: list[ColorTup]
+    """An arbitrary ordering of colors (to avoid duplicate work)"""
+    node_pool_size: int
+    """The current size of the node pool. Starts at 1 and increases up to the
+    total number of nodes."""
 
     def reorder_and_dedup_colors(self, colors: Collection[ColorTup]) -> list[ColorTup]:
         return [color for color in self.color_ranking if color in colors]
@@ -44,13 +50,19 @@ def solve(
         assert set(color_ranking) == set(colors)
         colors = color_ranking
 
-    cache = SolverCache(len(graph.connections), list(graph.connections.keys()), colors)
+    cache = SolverCache(
+        len(graph.connections),
+        list(graph.connections.keys()),
+        colors,
+        1,
+    )
 
     for length in range(len(graph.connections) - 1):
         allowed_nodes = cache.node_ranking[:length]
         focused_node = cache.node_ranking[length]
         neighbor_colors = {node.color for node in graph.connections[focused_node]}
         untried_colors = cache.reorder_and_dedup_colors(neighbor_colors)
+        cache.node_pool_size = length + 1
 
         search = SearchInfo(
             graph,
