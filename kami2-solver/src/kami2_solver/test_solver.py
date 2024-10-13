@@ -181,8 +181,7 @@ def test_2d_checkerboards_ignore_duplicate_searches():
         ...
 
     assert step.cache.minimum_ceiling == 6
-    # The next step is actually to reduce this number; I don't know by how much
-    assert index == 9026
+    assert index <= 4670
 
 
 def test_2d_checkerboards_ignore_duplicate_searches_change_current_node():
@@ -248,5 +247,4 @@ def test_2d_checkerboards_ignore_duplicate_searches_change_current_node():
         ...
 
     assert step.cache.minimum_ceiling == 6
-    # The next step is actually to reduce this number; I don't know by how much
-    assert index == 6660
+    assert index <= 3334

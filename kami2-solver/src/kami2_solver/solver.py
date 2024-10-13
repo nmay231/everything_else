@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 from typing import Collection, Generator
 
@@ -33,11 +34,25 @@ class SolverCache:
 
 @dataclass
 class SearchInfo:
+    """Contains information about a graph after a certain number of FF's have
+    happened including the information needed to choose the next nodes to FF."""
+
     graph: ColorGraph
+    """The current state of the graph"""
     chosen_nodes: list[Node]
+    """The nodes that have been FF in the past during this search"""
     focused_node: Node
+    """The node that will be FF the next solver iteration"""
     other_allowed_nodes: list[Node]
+    """A set of nodes that can become the next focused node. This starts out
+    empty to seed the minimum_ceiling calculation, and slowly expands into the
+    whole set of nodes. This is in the same order as node_ranking and sometimes
+    has nodes removed when it's clear those nodes cannot be FF in this search."""
     untried_colors: list[ColorTup]
+    """A subset of neighboring colors. This is used to avoid duplicate work"""
+    parent: "SearchInfo | None"
+    """The previous search that produced this one. At the time of writing,
+    mostly used to see the previous graph before a FF."""
 
 
 def solve(
@@ -70,6 +85,7 @@ def solve(
             focused_node=focused_node,
             other_allowed_nodes=allowed_nodes,
             untried_colors=untried_colors,
+            parent=None,
         )
         yield from _solve(cache, search)
 
@@ -114,6 +130,7 @@ def _solve(
             focused_node=merged_node,
             other_allowed_nodes=search.other_allowed_nodes,
             untried_colors=next_colors,
+            parent=search,
         )
 
         found_solution = 1 == len(next_graph.connections)
@@ -137,13 +154,29 @@ def _solve(
             if node not in bad_starts and node in search.graph.connections
         ]
 
-        for focused_node in reversed(starting_nodes):
-            # Probably not good to modify while iterating, but whatever
-            starting_nodes.pop()
+        previous_focused_node = search.focused_node
 
-            search.focused_node = focused_node
+        while starting_nodes:
+            next_node = starting_nodes.pop()
+
+            search = copy.copy(search)
+            search.focused_node = next_node
             search.other_allowed_nodes = starting_nodes
             search.untried_colors = cache.reorder_and_dedup_colors(
-                {node.color for node in search.graph.connections[focused_node]}
+                {node.color for node in search.graph.connections[next_node]}
             )
+
+            if search.parent:
+                original_color = search.parent.focused_node.color
+                # In the (sub)graph [a1-b-a2], we check for the condition that
+                # we FFed a2->b. If so, we would now be in the graph [a1-b']. To
+                # reduce duplicate work, we disallow FFing b'->a since it is
+                # always better to have FFed b->a in the first place.
+                if (
+                    original_color == next_node.color
+                    and next_node in search.graph.connections[previous_focused_node]
+                ):
+                    # Should never raise ValueError because next_node is a neighbor of previous_focused_node
+                    search.untried_colors.remove(previous_focused_node.color)
+
             yield from _solve(cache, search)
