@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 
 import pytest
@@ -113,3 +114,139 @@ def test_will_change_current_node(size: int):
 
     print(f"change current node {size=} {index=:,}")
     assert step.cache.minimum_ceiling == size
+
+
+def test_2d_checkerboards_ignore_duplicate_searches():
+    """Given a graph with a-b-a, there is no point of FF both a's to the color b
+    since you can just FF the b to a then back to b. You reach more nodes that
+    way and, more importantly, do not miss any.
+
+    This graph has a checkerboard with plenty of aba patterns. The nodes c-f are
+    necessary to prevent optimizations from eccentricity alone."""
+
+    # I should honestly consider making a parser for this kind of thing...
+    #    0    1    2    3    4
+    # 0            a -- c
+    #              |
+    # 1  d    a -- b -- a    e
+    #    |    |    |    |    |
+    # 2  a -- b -- a -- b -- a
+    #         |    |    |
+    # 3       a -- b -- a
+    #              |
+    # 4            a -- f
+
+    checkerboard: list[list[None | Node]] = [[None for _ in range(5)] for _ in range(5)]
+    for row in range(5):
+        for col in range(5):
+            if 2 <= row + col <= 6 and abs(row - col) <= 2:
+                color = ((row + col) % 2, 0, 0)
+                checkerboard[row][col] = Node((row, col), color)
+
+    connections = defaultdict[Node, set[Node]](set)
+    for row in range(5):
+        for col in range(5):
+            node = checkerboard[row][col]
+            if node is None:
+                continue
+
+            for dx, dy in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+                if not (0 <= row + dy < 5 and 0 <= col + dx < 5):
+                    continue
+                neighbor = checkerboard[row + dy][col + dx]
+                if neighbor is None:
+                    continue
+                connections[node].add(neighbor)
+
+    u, r, d, l = (
+        checkerboard[0][2],
+        checkerboard[2][4],
+        checkerboard[4][2],
+        checkerboard[2][0],
+    )
+
+    assert u and r and d and l, "Assumed the corners of the diamonds are present"
+
+    connections[Node((0, 0), (0, 0, 1))].add(u)
+    connections[Node((0, 0), (0, 0, 2))].add(r)
+    connections[Node((0, 0), (0, 0, 3))].add(d)
+    connections[Node((0, 0), (0, 0, 4))].add(l)
+    graph = ColorGraph(connections)
+
+    # Sanity check
+    assert len(graph.connections) == 17
+    assert graph.n_edges() == 20
+
+    for index, step in enumerate(solve(graph)):
+        ...
+
+    assert step.cache.minimum_ceiling == 6
+    # The next step is actually to reduce this number; I don't know by how much
+    assert index == 9026
+
+
+def test_2d_checkerboards_ignore_duplicate_searches_change_current_node():
+    """This test uses practically the same graph as the last one except that `-f`
+    from the previous graph gets replaced with `-b-a`. This still takes 6 moves,
+    but requires changing the focused node."""
+
+    # I should honestly consider making a parser for this kind of thing...
+    #    0    1    2    3    4
+    # 0            a -- c
+    #              |
+    # 1  d    a -- b -- a    e
+    #    |    |    |    |    |
+    # 2  a -- b -- a -- b -- a
+    #         |    |    |
+    # 3       a -- b -- a
+    #              |
+    # 4            a -- b -- a
+
+    checkerboard: list[list[None | Node]] = [[None for _ in range(5)] for _ in range(5)]
+    for row in range(5):
+        for col in range(5):
+            if 2 <= row + col <= 6 and abs(row - col) <= 2:
+                color = ((row + col) % 2, 0, 0)
+                checkerboard[row][col] = Node((row, col), color)
+
+    connections = defaultdict[Node, set[Node]](set)
+    for row in range(5):
+        for col in range(5):
+            node = checkerboard[row][col]
+            if node is None:
+                continue
+
+            for dx, dy in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+                if not (0 <= row + dy < 5 and 0 <= col + dx < 5):
+                    continue
+                neighbor = checkerboard[row + dy][col + dx]
+                if neighbor is None:
+                    continue
+                connections[node].add(neighbor)
+
+    u, r, d, l = (
+        checkerboard[0][2],
+        checkerboard[2][4],
+        checkerboard[4][2],
+        checkerboard[2][0],
+    )
+
+    assert u and r and d and l, "Assumed the corners of the diamonds are present"
+
+    connections[Node((0, 0), (0, 0, 1))].add(u)
+    connections[Node((0, 0), (0, 0, 2))].add(r)
+    connections[Node((0, 0), (0, 0, 4))].add(l)
+
+    connections[Node((0, 0), (1 - d.color[0], 0, 0))].update([d, copy.copy(d)])
+    graph = ColorGraph(connections)
+
+    # Sanity check
+    assert len(graph.connections) == 17
+    assert graph.n_edges() == 20
+
+    for index, step in enumerate(solve(graph)):
+        ...
+
+    assert step.cache.minimum_ceiling == 6
+    # The next step is actually to reduce this number; I don't know by how much
+    assert index == 6660
