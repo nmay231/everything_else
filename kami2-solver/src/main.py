@@ -1,5 +1,3 @@
-import json
-import logging
 import math
 import sys
 import time
@@ -134,10 +132,10 @@ graph.combine_neighbors(color_labels, average_color)
 graph_size = len(graph.connections)
 print(f"There are a total of {graph_size} nodes")
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 # Each line will be json so I can parse with jq
 filename = sys.argv[1].replace(".jpg", ".log")
-logging.basicConfig(level=logging.INFO, filename=filename, format="%(message)s")
+# logging.basicConfig(level=logging.INFO, filename=filename, format="%(message)s")
 
 color_map = {color: i for i, color in average_color.items()}
 serialize = make_json_serializer(color_map)
@@ -147,15 +145,22 @@ solve_process = solve(graph, color_ranking=color_ranking)
 
 a_solution: SolverStep | None = None
 start = time.time()
-for step_n, step in enumerate(solve_process, 1):
-    if step_n % 1000 == 0:
-        print(
-            f"{step.cache.minimum_ceiling=} node_pool_progress={step.cache.node_pool_size}/{graph_size} {step_n=:,}"
-        )
+try:
+    for step_n, step in enumerate(solve_process, 1):
+        if step_n % 1000 == 0:
+            print(
+                f"{step.cache.minimum_ceiling=} node_pool_progress={step.cache.node_pool_size}/{graph_size} {step_n=:,}"
+            )
 
-    if step.found_a_solution:
-        a_solution = step
-        logger.info(json.dumps(step, default=serialize))
+        # TODO: This doesn't find all solutions since the algorithm actually
+        # aborts *on* the N'th step if we've already found a solution with N
+        # moves. This means we only get a few solutions.
+        if step.found_a_solution:
+            a_solution = step
+            # logger.info(json.dumps(step, default=serialize))
+except KeyboardInterrupt:
+    print("\nCancelled run...")
+    a_solution = None
 
 duration = time.time() - start
 print(f"Took {duration:.2f} seconds")
