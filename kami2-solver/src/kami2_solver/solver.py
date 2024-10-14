@@ -8,10 +8,16 @@ from .utils import ColorTup
 
 @dataclass
 class SolverStep:
+    """An object containing debugging information about the current search in
+    progress."""
+
     current_graph: ColorGraph
     moves: list[Node]
+    """The resulting nodes *after* each FF of the graph"""
     cache: "SolverCache"
     found_a_solution: bool
+    """Is the graph a solution using the (currently known) minimum number of
+    moves"""
 
 
 @dataclass
@@ -25,7 +31,7 @@ class SolverCache:
     color_ranking: list[ColorTup]
     """An arbitrary ordering of colors (to avoid duplicate work)"""
     node_pool_size: int
-    """The current size of the node pool. Starts at 1 and increases up to the
+    """**Purely for debugging purposes** The current size of the node pool. Starts at 1 and increases up to the
     total number of nodes."""
 
     def reorder_and_dedup_colors(self, colors: Collection[ColorTup]) -> list[ColorTup]:
