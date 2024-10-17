@@ -248,3 +248,51 @@ def test_2d_checkerboards_ignore_duplicate_searches_change_current_node():
 
     assert step.cache.minimum_ceiling == 6
     assert index <= 3334
+
+
+def test_eliminating_colors_is_not_always_last():
+    """This is sorta a test of both my solver and my expectations (I wasn't 100%
+    confident of my paper proof). In the following graph, you can FF `d`
+    (removing the last node with that color) while the next optimal step doesn't
+    remove any color from the graph."""
+    #    0    1    2    3    4    5    6
+    # 0  a1 - b1 - a2
+    #         |
+    # 1       c1 - a3 - d1 - a4 - c2 - b3
+    #         |
+    # 2       b2
+    connections: dict[Node, set[Node]] = {}
+
+    connections[_b1 := Node((1, 0), (1, 0, 0))] = {
+        _a1 := Node((0, 0), (0, 0, 0)),
+        _a2 := Node((2, 0), (0, 0, 0)),
+        c1 := Node((1, 1), (2, 0, 0)),
+    }
+    connections[_b2 := Node((1, 2), (1, 0, 0))] = {
+        c1,
+    }
+    connections[_a3 := Node((2, 1), (0, 0, 0))] = {
+        c1,
+        d1 := Node((3, 1), (3, 0, 0)),
+    }
+    connections[_a4 := Node((4, 1), (0, 0, 0))] = {
+        d1,
+        c2 := Node((5, 1), (2, 0, 0)),
+    }
+    connections[c2] = {
+        _b3 := Node((6, 1), (1, 0, 0)),
+    }
+
+    graph = ColorGraph(connections)
+
+    assert len(graph.connections) == 10
+    assert graph.n_edges() == 9
+
+    solution = None
+    for index, step in enumerate(solve(graph)):
+        if step.found_a_solution:
+            solution = step
+
+    assert solution is not None, "There must be a solution"
+    assert solution.cache.minimum_ceiling == 4, "There must be a solution with 4 moves"
+    assert [node.color[0] for node in solution.moves] == [0, 2, 1, 0]

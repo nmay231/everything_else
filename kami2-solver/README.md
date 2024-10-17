@@ -78,6 +78,41 @@ actions in the right order if they are truly independent. We can also optimize
 by not FFing high-eccentricity nodes, e.g. nodes with a large maximum distance
 to some other node in the graph.
 
+#### Dead-end trains of thought
+
+Here are a few assumptions on how I thought these puzzles might work, and example
+graphs that prove why those thoughts are wrong. Besides thinking about it from a
+first principles perspective, I am also slowly going through the book Graphs and
+Digraphs (6th edition) in hopes of learning something that helps speed up the
+solver.
+
+- Many of the puzzles (like 80%) in Kami 2 can be solved by finding the right node and
+  repeatedly FFing the same section with different colors. This works
+  intuitively because 1) you often have more friends of friends than you do
+  friends and 2) FFing a node with many neighbors reduces the order of the graph
+  by a lot while still leaving the node with many neighbors (because of the
+  friends of friends thing). However, not all puzzles can be solved by FFing the
+  same section; This simple graph `a -- b -- a -- c -- a` can be solved in two
+  steps but requires changing the focused node.
+- Along a similar chain of thought, since FFing two nodes that are not neighbors or
+  neighbors of neighbors are always independent (you can do the moves in either
+  order without changing the result), I thought you only have to refocus to a
+  node that is a neighbor or neighbor of a neighbor. That's wrong however since
+  you can adapt the above graph to require an indefinitely large "jump" when
+  changing focus: `a1-a2-...-aN-...-a2-a1-b1-b2-...-bM-...-b2-b1`
+- When you finish a puzzle, some of the steps *must* be removing the last of a
+  particular color; that's obvious since you start with more than one color and
+  end with one color. I thought there was always a way to solve a puzzle by
+  leaving those color deletion steps for last. This is not the case though, and
+  here's a counter example:
+  ```
+  a -- b -- a
+       |
+       c -- a -- d -- a -- c -- b
+       |
+       b
+  ```
+
 ### Tentative TODOs
 
 - [ ] Account for blank cells in the grid (cells that don't need to be FF'ed)
