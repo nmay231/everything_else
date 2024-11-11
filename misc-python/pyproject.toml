@@ -27,3 +27,6 @@ build-backend = "poetry.core.masonry.api"
 # TODO: ruff.lint doesn't have autocomplete yet using vscode toml json schemas
 [tool.ruff]
 select = ["UP"]
+
+[tool.mypy]
+allow_redefinition = true
