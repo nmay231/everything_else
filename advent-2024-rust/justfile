@@ -1,0 +1,18 @@
+# Requires justfile 1.33.0 or higher
+# Allow the [script] tag since it's "unstable"
+set unstable
+
+[script]
+@init day:
+    set -eo pipefail; shopt -s failglob; set -u
+
+    {{path_exists("cookie.txt")}} # Fails the script if cookie.txt does not exist
+    curl --cookie "$(cat cookie.txt)" https://adventofcode.com/2024/day/{{day}}/input -o assets/day{{day}}.txt
+    cp src/bin/blank.rs src/bin/day{{day}}.rs
+    sed -i 's/%DAY_NUMBER%/{{day}}/g' src/bin/day{{day}}.rs
+
+[script]
+run day:
+    set -eo pipefail; shopt -s failglob; set -u
+
+    cargo run --bin day{{day}}
