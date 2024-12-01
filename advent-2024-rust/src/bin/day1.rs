@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 type Output = usize;
 
 fn parse_line(line: &str) -> Option<(usize, usize)> {
@@ -21,8 +23,18 @@ fn part1(text: &str) -> Output {
     return list1.iter().zip(&list2).map(|(a, b)| a.abs_diff(*b)).sum();
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part2(text: &str) -> Output {
+    let mut counts1 = HashMap::<usize, usize>::new();
+    let mut counts2 = HashMap::<usize, usize>::new();
+    for (i, line) in text.lines().enumerate() {
+        let (a, b) = parse_line(line).expect(&format!("Unknown format on line {i}"));
+        *counts1.entry(a).or_default() += 1;
+        *counts2.entry(b).or_default() += 1;
+    }
+    return counts1
+        .iter()
+        .map(|(key, count)| key * counts2.get(key).unwrap_or(&0) * count)
+        .sum();
 }
 
 fn main() -> std::io::Result<()> {
