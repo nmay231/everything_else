@@ -4,7 +4,7 @@ fn part1(text: &str) -> Output {
     0
 }
 
-fn part2(_text: &str) -> Output {
+fn part2(text: &str) -> Output {
     0
 }
 
@@ -17,10 +17,10 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn sample() {
-        assert!(true);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     #[test]
+//     fn todo!() {
+//         assert!(true);
+//     }
+// }

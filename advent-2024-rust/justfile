@@ -11,8 +11,8 @@ set unstable
     cp src/bin/blank.rs src/bin/day{{day}}.rs
     sed -i 's/%DAY_NUMBER%/{{day}}/g' src/bin/day{{day}}.rs
 
-[script]
 run day:
-    set -eo pipefail; shopt -s failglob; set -u
-
     cargo run --bin day{{day}}
+
+test day:
+    cargo test --bin day{{day}}
