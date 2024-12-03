@@ -29,6 +29,14 @@ dependencies = [
 name = "advent-2024-rust"
 version = "0.1.0"
 dependencies = [
+ "indoc",
+ "itertools",
+ "lazy_static",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "rand",
+ "regex",
  "rstest",
 ]
 

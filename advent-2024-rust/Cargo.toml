@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+indoc = "2.0.4"
+itertools = "0.12.0"
+lazy_static = "1.4.0"
+num-bigint = { version = "0.4.4", features = ["rand"] }
+num-integer = "0.1.45"
+num-traits = "0.2.17"
+rand = "0.8.5"
+regex = "1.9.5"
 
 [dev-dependencies]
 rstest = "0.18.2"
