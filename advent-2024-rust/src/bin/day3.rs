@@ -22,7 +22,27 @@ fn part1(text: &str) -> Output {
 }
 
 fn part2(text: &str) -> Output {
-    0
+    let mul = Regex::from_str(r"mul\(\d+,\d+\)|do\(\)|don't\(\)").unwrap();
+    let mut result = 0;
+    let mut enabled = true;
+
+    for mat in mul.find_iter(text) {
+        match mat.as_str() {
+            "do()" => enabled = true,
+            "don't()" => enabled = false,
+            _ if !enabled => continue,
+            sub => {
+                let sub = &sub[4..].trim_end_matches(')');
+                let (a, b) = sub
+                    .split_once(',')
+                    .expect("to have two numbers split by comma");
+                let a: usize = a.parse().unwrap();
+                let b: usize = b.parse().unwrap();
+                result += a * b;
+            }
+        }
+    }
+    result
 }
 
 fn main() -> std::io::Result<()> {
@@ -33,11 +53,3 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
-
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn todo!() {
-//         assert!(true);
-//     }
-// }
