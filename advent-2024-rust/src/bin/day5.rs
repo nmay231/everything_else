@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 
 type Output = usize;
 
@@ -28,6 +29,27 @@ fn parse(text: &str) -> Option<(HashMap<usize, Vec<usize>>, Vec<Vec<usize>>)> {
             ),
         }
     }
+
+    let mut first = HashSet::new();
+    let mut second = HashSet::new();
+    for (a, bs) in &orderings {
+        first.insert(a);
+        for b in bs {
+            first.insert(b);
+        }
+    }
+    for pages in &page_updates {
+        for a in pages {
+            second.insert(a);
+        }
+    }
+    // Sanity check - The phrasing of part 2 suggests that there is no ambiguity
+    // of which number is before the other when you correct one of them, but I
+    // couldn't stand just assuming that.
+    assert_eq!(
+        first, second,
+        "I assume the (partial) ordering of numbers is un-ambiguous"
+    );
 
     Some((orderings, page_updates))
 }
@@ -59,7 +81,41 @@ fn part1(text: &str) -> Output {
 }
 
 fn part2(text: &str) -> Output {
-    0
+    let (orderings, page_updates) = parse(text).expect("Error parsing sections of the file");
+    let mut total = 0;
+
+    for mut pages in page_updates {
+        let old_pages = pages.clone();
+        pages.sort_by(|a, b| {
+            orderings
+                .get(a)
+                .and_then(|after_a| {
+                    if after_a.contains(b) {
+                        Some(Ordering::Less)
+                    } else {
+                        Some(Ordering::Greater)
+                    }
+                })
+                .unwrap_or_else(|| {
+                    let after_b = orderings
+                        .get(b)
+                        .expect("A pair of pages have an ambiguous ordering!");
+                    if after_b.contains(a) {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Less
+                    }
+                })
+        });
+
+        if pages == old_pages {
+            continue;
+        }
+
+        assert!(pages.len() & 1 == 1);
+        total += pages[pages.len() / 2];
+    }
+    total
 }
 
 fn main() -> std::io::Result<()> {
@@ -75,7 +131,7 @@ fn main() -> std::io::Result<()> {
 mod tests {
     use indoc::indoc;
 
-    use crate::part1;
+    use crate::{part1, part2};
 
     const TEXT: &str = indoc! {"
         47|53
@@ -111,5 +167,10 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(part1(TEXT), 143);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(part2(TEXT), 123);
     }
 }
