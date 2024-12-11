@@ -38,6 +38,30 @@ fn part1(text: &str) -> Output {
     grid.into_iter().filter(|c| c == &VISITED).count()
 }
 
+/// Pre-solve brainstorming: So, I have a couple ideas for how to solve this. 1)
+/// Brute force. Just try every single position along the original path and
+/// detect if the guard gets caught into a loop or leaves the grid. 2) I could
+/// map out every possible turning spot next to an obstacle and detect any
+/// pre-existing loops or setups that are one obstacle away from a loop. Then as
+/// I travel through the normal path I see if an obstacle can redirect the guard
+/// into one of those loops. I like this a lot less because setups that are one
+/// away from a loop are much harder to detect, and the obstacle that creates
+/// the loop must be the same one the redirects the guard from its original spot
+/// to since you're only allowed to place one obstacle. That makes it basically
+/// require the same logic as the brute force method while being more
+/// complicated.
+///
+/// In fact, I had another "third" method that was not dissimilar to the second
+/// but had a method of checking for potential loops by marking past movements
+/// with arrows and detecting when walking over a trail of arrows going to the
+/// right (because then you can place an obstacle there). However that still has
+/// to share brute force logic for when certain cells are traversed up to 4 ways
+/// in the same loop.
+///
+/// Overall, I think the only real optimization I can reasonably make is to
+/// compress the grid into a set of columns and rows with the obstacles as
+/// positions in order. That way you can avoid traversing every cell and move in
+/// leaps and bounds.
 fn part2(text: &str) -> Output {
     0
 }
