@@ -1,27 +1,29 @@
+use anyhow::{Context, Result};
+use itertools::Itertools;
+
 type Output = usize;
+
+fn parse_line(line: &str) -> Result<(usize, Vec<usize>)> {
+    let (test_value, operands) = line
+        .split_once(": ")
+        .with_context(|| format!("line did not contain colon separator: `{}`", line))?;
+    let test_value: usize = test_value
+        .parse()
+        .with_context(|| format!("{:?} was not a usize", test_value))?;
+    let operands = operands
+        .split(' ')
+        .map(str::parse)
+        .collect::<Result<Vec<usize>, _>>()
+        .with_context(|| format!("expected {:?} to be space-separated ints", operands))?;
+
+    return Ok((test_value, operands));
+}
 
 fn part1(text: &str) -> Output {
     let mut total = 0;
 
     'lines: for line in text.lines() {
-        let (test_value, operands) = line
-            .split_once(": ")
-            // TODO: I wish there was a more convenient method to provide
-            // formatted panic messages
-            .unwrap_or_else(|| panic!("line did not contain colon separator: `{}`", line));
-        let test_value: usize = test_value
-            .parse()
-            .unwrap_or_else(|err| panic!("{:?} was not a usize: {}", test_value, err));
-        let operands = operands
-            .split(' ')
-            .map(str::parse)
-            .collect::<Result<Vec<usize>, _>>()
-            .unwrap_or_else(|err| {
-                panic!(
-                    "expected {:?} to be space-separated ints: {}",
-                    operands, err
-                )
-            });
+        let (test_value, operands) = parse_line(line).unwrap();
 
         for mut index in 0..usize::pow(2, operands.len() as u32 - 1) {
             let mut partial = operands[0];
@@ -46,8 +48,51 @@ fn part1(text: &str) -> Output {
     total
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Op {
+    Plus,
+    Mul,
+    Concat,
+}
+
 fn part2(text: &str) -> Output {
-    0
+    let mut total = 0;
+
+    'lines: for line in text.lines() {
+        let (test_value, operands) = parse_line(line).unwrap();
+
+        let all_operations = (1..operands.len())
+            .map(|_| [Op::Plus, Op::Mul, Op::Concat].iter())
+            .multi_cartesian_product();
+
+        let mut x = 0;
+        for operations in all_operations {
+            assert_eq!(operations.len(), operands.len() - 1);
+            x += 1;
+
+            let mut partial = operands[0];
+
+            for (op, num) in operations.iter().zip(operands.iter().skip(1)) {
+                match op {
+                    Op::Plus => partial += *num,
+                    Op::Mul => partial *= *num,
+                    Op::Concat => {
+                        // TODO: Test which concat method is faster
+                        // partial = format!("{}{}", partial, num).parse().unwrap();
+                        let amount = num.to_string().len();
+                        partial = partial * usize::pow(10, amount as u32) + *num;
+                    }
+                }
+            }
+            if partial == test_value {
+                total += test_value;
+                continue 'lines;
+            }
+        }
+
+        assert_eq!(x, usize::pow(3, operands.len() as u32 - 1));
+    }
+    return total;
 }
 
 fn main() -> std::io::Result<()> {
@@ -65,7 +110,7 @@ mod tests {
     use itertools::Itertools;
     use rand::{Rng, SeedableRng};
 
-    use crate::part1;
+    use crate::{part1, part2};
 
     const TEXT: &str = indoc! {"
         190: 10 19
@@ -78,6 +123,7 @@ mod tests {
         21037: 9 7 18 13
         292: 11 6 16 20
     "};
+
     #[test]
     fn part1_given_example() {
         assert_eq!(part1(TEXT), 3749)
@@ -125,5 +171,10 @@ mod tests {
         }
 
         assert_eq!(part1(&text), total_test_values);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(part2(TEXT), 11387);
     }
 }

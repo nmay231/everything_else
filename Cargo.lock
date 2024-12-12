@@ -15,7 +15,7 @@ name = "advent-2023-rust"
 version = "0.1.0"
 dependencies = [
  "indoc",
- "itertools",
+ "itertools 0.12.0",
  "lazy_static",
  "num-bigint",
  "num-integer",
@@ -29,8 +29,9 @@ dependencies = [
 name = "advent-2024-rust"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "indoc",
- "itertools",
+ "itertools 0.13.0",
  "lazy_static",
  "num-bigint",
  "num-integer",
@@ -48,6 +49,12 @@ checksum = "b2969dcb958b36655471fc61f7e416fa76033bdd4bfed0678d8fee1e2d07a1f0"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "anyhow"
+version = "1.0.94"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1fd03a028ef38ba2276dce7e33fcd6369c158a1bca17946c4b1b701891c1ff7"
 
 [[package]]
 name = "autocfg"
@@ -194,6 +201,15 @@ name = "itertools"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -385,7 +401,7 @@ dependencies = [
 name = "rust-misc"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.0",
 ]
 
 [[package]]
