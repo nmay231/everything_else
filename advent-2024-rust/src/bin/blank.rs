@@ -19,8 +19,15 @@ fn main() -> std::io::Result<()> {
 
 // #[cfg(test)]
 // mod tests {
+//     use crate::part1;
+//     use indoc::indoc;
+
+//     const TEXT: &str = indoc! {"
+//         asdf
+//     "};
+
 //     #[test]
-//     fn todo!() {
-//         assert!(true);
+//     fn part1_given_example() {
+//         assert_eq!(part1(TEXT), 0);
 //     }
 // }
