@@ -23,23 +23,6 @@ fn part1(text: &str) -> Output {
                 )
             });
 
-        // // Worthless pre-optimization? Perhaps...
-        // match (
-        //     test_value.cmp(&operands.iter().sum()),
-        //     test_value.cmp(&operands.iter().product()),
-        // ) {
-        //     // There is no way to equal the test_value with the given operands
-        //     (Ordering::Less, _) | (_, Ordering::Greater) => {
-        //         continue 'lines;
-        //     }
-        //     // Found an option already
-        //     (Ordering::Equal, _) | (_, Ordering::Equal) => {
-        //         total += test_value;
-        //         continue 'lines;
-        //     }
-        //     _ => {}
-        // }
-
         for mut index in 0..usize::pow(2, operands.len() as u32 - 1) {
             let mut partial = operands[0];
             for operand in operands.iter().skip(1) {
@@ -102,6 +85,8 @@ mod tests {
 
     #[test]
     fn part1_random() {
+        // This doesn't test against false positives, but it was enough to help
+        // me fix the code.
         let mut rng = rand::rngs::StdRng::seed_from_u64(816542);
         let mut numbers =
             (&mut rng).sample_iter(rand::distributions::Uniform::new_inclusive(0_usize, 0xffff));
