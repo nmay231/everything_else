@@ -110,6 +110,61 @@ impl UsizePoint {
     pub fn manhattan_distance(&self, other: &UsizePoint) -> usize {
         self.0.abs_diff(other.0) + self.1.abs_diff(other.1)
     }
+
+    #[inline(always)]
+    pub fn within_grid(&self, grid_size: &UsizePoint) -> bool {
+        self.0 >= 0 && self.1 >= 0 && self.0 < grid_size.0 && self.1 < grid_size.1
+    }
+
+    #[inline(always)]
+    pub fn isize(&self) -> IsizePoint {
+        IsizePoint(self.0 as isize, self.1 as isize)
+    }
+
+    #[inline(always)]
+    pub fn add(&self, other: &Self) -> Self {
+        Self(self.0 + other.0, self.1 + other.1)
+    }
+
+    #[inline(always)]
+    pub fn sub(&self, other: &Self) -> IsizePoint {
+        self.isize().sub(&other.isize())
+    }
+
+    #[inline(always)]
+    pub fn neg(&self) -> IsizePoint {
+        self.isize().neg()
+    }
+}
+
+// TODO: Implement as a generic and type aliases for usize and isize, and
+// implement the Add, etc. traits
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub struct IsizePoint(isize, isize);
+
+impl IsizePoint {
+    #[inline(always)]
+    pub fn within_grid(&self, grid_size: &UsizePoint) -> bool {
+        self.0 >= 0
+            && self.1 >= 0
+            && (self.0 as usize) < grid_size.0
+            && (self.1 as usize) < grid_size.1
+    }
+
+    #[inline(always)]
+    pub fn add(&self, other: &Self) -> Self {
+        Self(self.0 + other.0, self.1 + other.1)
+    }
+
+    #[inline(always)]
+    pub fn sub(&self, other: &Self) -> Self {
+        Self(self.0 - other.0, self.1 - other.1)
+    }
+
+    #[inline(always)]
+    pub fn neg(&self) -> Self {
+        Self(-self.0, -self.1)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
