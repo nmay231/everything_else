@@ -43,7 +43,41 @@ fn part1(text: &str) -> Output {
 }
 
 fn part2(text: &str) -> Output {
-    0
+    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid = text.trim().chars().filter(|c| c != &'\n').collect_vec();
+    let mut antennas = HashMap::<char, Vec<UsizePoint>>::new();
+
+    for (i, c) in grid.iter().enumerate() {
+        if c == &'.' {
+            continue;
+        }
+        antennas
+            .entry(*c)
+            .or_default()
+            .push(UsizePoint::from_index(grid_size, i));
+    }
+
+    let mut antinodes = HashSet::new();
+    for positions in antennas.into_values() {
+        for vec in positions.into_iter().combinations(2) {
+            let mut a = vec[0].isize();
+            let mut b = vec[1].isize();
+            let ab = &b.sub(&a);
+
+            // Yes, we do count the antennas as antinodes now.
+            while a.within_grid(grid_size) {
+                antinodes.insert(a);
+                a = a.sub(ab);
+            }
+
+            while b.within_grid(grid_size) {
+                antinodes.insert(b);
+                b = b.add(ab);
+            }
+        }
+    }
+
+    return antinodes.len();
 }
 
 fn main() -> std::io::Result<()> {
@@ -57,7 +91,7 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::part1;
+    use crate::{part1, part2};
     use indoc::indoc;
 
     const TEXT: &str = indoc! {"
@@ -78,5 +112,10 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(part1(TEXT), 14)
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(part2(TEXT), 34)
     }
 }
