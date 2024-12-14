@@ -13,9 +13,12 @@
 just init XX
 ```
 
-3. Run the program for that day's puzzle. (though the cargo command to run it is
+3. Run/test the program for that day's puzzle. (though the cargo command to run it is
    really not that hard).
 
 ```
 just run XX
+just run XX -- ... # Pass args to binary
+just test XX
+just test XX -- PAT # Pass args to test binary (Here, we filter tests to match PAT)
 ```

@@ -11,8 +11,8 @@ set unstable
     cp src/bin/blank.rs src/bin/day{{day}}.rs
     sed -i 's/%DAY_NUMBER%/{{day}}/g' src/bin/day{{day}}.rs
 
-run day:
-    cargo run --bin day{{day}}
+run day *args:
+    cargo run --bin day{{day}} {{args}}
 
-test day:
-    cargo test --bin day{{day}}
+test day *args:
+    cargo test --bin day{{day}} {{args}}
