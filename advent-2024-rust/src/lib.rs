@@ -113,7 +113,7 @@ impl UsizePoint {
 
     #[inline(always)]
     pub fn within_grid(&self, grid_size: &UsizePoint) -> bool {
-        self.0 >= 0 && self.1 >= 0 && self.0 < grid_size.0 && self.1 < grid_size.1
+        self.0 < grid_size.0 && self.1 < grid_size.1
     }
 
     #[inline(always)]
