@@ -263,3 +263,171 @@ pub trait Zipper: Sized {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct DisjointSetWithCount {
+    /// Maps a node to its parent, or to itself if it is an eve, aka the set's representative
+    indexes: Vec<usize>,
+    /// Number of children (plus one for the node itself)
+    counts: Vec<usize>,
+}
+
+impl DisjointSetWithCount {
+    pub fn new(size: usize) -> Self {
+        Self {
+            indexes: (0..size).collect(),
+            counts: vec![1; size],
+        }
+    }
+
+    /// Number of nodes
+    #[inline(always)]
+    pub fn size(&self) -> usize {
+        self.indexes.len()
+    }
+
+    /// Number of children of the node's eve (plus one for the eve itself)
+    pub fn size_of_eve(&mut self, node: usize) -> usize {
+        if node == self.indexes[node] {
+            return self.counts[node];
+        } else {
+            let eve = self.bookkeeping_eve(node);
+            return self.size_of_eve(eve);
+        }
+    }
+
+    /// Merge a and b into the same set, if not already in the same
+    pub fn link(&mut self, a: usize, b: usize) {
+        assert!(a < self.indexes.len() && b < self.indexes.len());
+
+        let a = self.bookkeeping_eve(a);
+        let b = self.bookkeeping_eve(b);
+
+        if a != b {
+            self.indexes[a] = b;
+            self.counts[b] += self.counts[a];
+        }
+    }
+
+    // TODO: Don't think I ever need this...
+    // pub fn eve(&self, node: usize) -> usize {}
+
+    /// Find the eve/root of the node while updating the parent of any node in between
+    pub fn bookkeeping_eve(&mut self, mut node: usize) -> usize {
+        loop {
+            let parent = self.indexes[node];
+            if node == parent {
+                return node;
+            }
+            // amortize the cost of looking up the eve of a node.
+            self.indexes[node] = self.indexes[parent];
+
+            node = parent;
+        }
+    }
+
+    /// Does a node map back to itself, i.e. it has no parent?
+    pub fn is_an_eve(&self, node: usize) -> bool {
+        return self.indexes[node] == node;
+    }
+
+    pub fn debug_print(&self) {
+        use std::collections::hash_map::HashMap;
+        let mut map = HashMap::<usize, Vec<usize>>::new();
+        let mut eves = vec![];
+        for node in 0..self.size() {
+            if self.is_an_eve(node) {
+                eves.push(node);
+            }
+            map.entry(self.indexes[node]).or_default().push(node);
+        }
+
+        fn debug_string(
+            node: usize,
+            prefix: &str,
+            map: &HashMap<usize, Vec<usize>>,
+            counts: &Vec<usize>,
+        ) -> String {
+            match map.get(&node) {
+                Some(children) => {
+                    let mut result = String::new();
+                    let prefix = format!("{}{}(count={}) <- ", prefix, node, counts[node]);
+                    for child in children.iter() {
+                        if child == &node {
+                            continue;
+                        }
+                        result.push_str(&debug_string(*child, &prefix, map, counts));
+                    }
+                    result
+                }
+                None => format!("{}{}\n", prefix, node),
+            }
+        }
+
+        for eve in eves {
+            print!("{}", debug_string(eve, "", &map, &self.counts));
+        }
+        println!();
+    }
+}
+
+#[cfg(test)]
+mod test_disjoint_set_with_count {
+    use itertools::Itertools;
+
+    use crate::DisjointSetWithCount;
+
+    #[derive(PartialEq, Eq, Debug)]
+    struct Summary {
+        pub total_count: usize,
+        pub eve_count: usize,
+    }
+    fn get_summary(dis_set: &mut DisjointSetWithCount) -> Summary {
+        let mut total_count = 0;
+        let mut eve_count = 0;
+        for node in 0..dis_set.size() {
+            if dis_set.is_an_eve(node) {
+                total_count += dis_set.size_of_eve(node);
+                eve_count += 1;
+            }
+        }
+        Summary {
+            total_count,
+            eve_count,
+        }
+    }
+
+    macro_rules! assert_consistency {
+        ($grid:expr, $eve_count:expr) => {
+            assert_eq!(
+                get_summary($grid),
+                Summary {
+                    total_count: $grid.size(),
+                    eve_count: $eve_count
+                }
+            )
+        };
+    }
+
+    #[test]
+    fn first_rows_then_columns() {
+        let mut grid = DisjointSetWithCount::new(25);
+        assert_consistency!(&mut grid, 25);
+
+        for window in (0..25).chunks(5).into_iter() {
+            for (a, b) in window.tuple_windows() {
+                grid.link(a, b);
+            }
+        }
+
+        for start in 0..5 {
+            let mut grid = grid.to_owned();
+            assert_consistency!(&mut grid, 5);
+
+            for (a, b) in (0..25).skip(start).step_by(5).tuple_windows() {
+                grid.link(a, b);
+            }
+            assert_consistency!(&mut grid, 1);
+        }
+    }
+}
