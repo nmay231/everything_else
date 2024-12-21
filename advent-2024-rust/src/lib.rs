@@ -1,3 +1,6 @@
+use std::fmt::Debug;
+use std::ops::Deref;
+
 /// (row, column)
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct UsizePoint(pub usize, pub usize);
@@ -265,62 +268,139 @@ pub trait Zipper: Sized {
 }
 
 #[derive(Debug, Clone)]
-pub struct DisjointSetWithCount {
-    /// Maps a node to its parent, or to itself if it is an eve, aka the set's representative
-    indexes: Vec<usize>,
-    /// Number of children (plus one for the node itself)
-    counts: Vec<usize>,
+pub enum EveOrNode<T> {
+    Eve(T),
+    Node(usize),
 }
 
-impl DisjointSetWithCount {
+#[derive(Debug, Clone)]
+pub struct DisjointSet<EveT: Eve> {
+    /// Maps a node to its parent, or to itself if it is an eve, aka the set's representative
+    nodes: Vec<EveOrNode<EveT>>,
+}
+
+pub trait Eve {
+    fn init(index: usize) -> Self;
+    fn merge(&self, other: &Self) -> Self;
+}
+
+#[derive(Debug, Clone)]
+pub struct Count(usize);
+
+impl Deref for Count {
+    type Target = usize;
+
+    fn deref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl Eve for Count {
+    fn init(_index: usize) -> Self {
+        Self(1)
+    }
+
+    fn merge(&self, other: &Self) -> Self {
+        Self(self.0 + other.0)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EveAsIndex(usize);
+
+impl Deref for EveAsIndex {
+    type Target = usize;
+
+    fn deref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl Eve for EveAsIndex {
+    fn init(index: usize) -> Self {
+        Self(index)
+    }
+
+    fn merge(&self, _other: &Self) -> Self {
+        Self(self.0)
+    }
+}
+
+impl<EveT: Eve> DisjointSet<EveT> {
     pub fn new(size: usize) -> Self {
         Self {
-            indexes: (0..size).collect(),
-            counts: vec![1; size],
+            nodes: (0..size)
+                .map(|index| EveOrNode::Eve(EveT::init(index)))
+                .collect(),
         }
     }
 
     /// Number of nodes
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.indexes.len()
+        self.nodes.len()
     }
 
-    /// Number of children of the node's eve (plus one for the eve itself)
-    pub fn size_of_eve(&mut self, node: usize) -> usize {
-        if node == self.indexes[node] {
-            return self.counts[node];
-        } else {
-            let eve = self.bookkeeping_eve(node);
-            return self.size_of_eve(eve);
-        }
+    // TODO: I don't like that these peripheral methods take `&mut self` just
+    // because they call bookkeeping_eve_index. I guess the only way around that
+    // would be to just get over (the solution I'm probably going to go with) or
+    // to apply interior mutability with RefCell.
+    /// Are the eves of the nodes the same?
+    pub fn is_linked(&mut self, a: usize, b: usize) -> bool {
+        self.bookkeeping_eve_index(a) == self.bookkeeping_eve_index(b)
     }
 
     /// Merge a and b into the same set, if not already in the same
     pub fn link(&mut self, a: usize, b: usize) {
-        assert!(a < self.indexes.len() && b < self.indexes.len());
+        assert!(a < self.nodes.len() && b < self.nodes.len());
 
-        let a = self.bookkeeping_eve(a);
-        let b = self.bookkeeping_eve(b);
+        let a = self.bookkeeping_eve_index(a);
+        let b = self.bookkeeping_eve_index(b);
 
         if a != b {
-            self.indexes[a] = b;
-            self.counts[b] += self.counts[a];
+            self.nodes[a] = EveOrNode::Eve(self.eve(a).merge(self.eve(b)));
+            self.nodes[b] = EveOrNode::Node(a);
         }
     }
 
-    // TODO: Don't think I ever need this...
-    // pub fn eve(&self, node: usize) -> usize {}
+    pub fn eve(&self, mut node: usize) -> &EveT {
+        loop {
+            match &self.nodes[node] {
+                EveOrNode::Eve(result) => return result,
+                EveOrNode::Node(parent) => node = *parent,
+            }
+        }
+    }
+
+    pub fn eve_mut(&mut self, mut node: usize) -> &mut EveT {
+        loop {
+            if let EveOrNode::Node(index) = self.nodes[node] {
+                node = index;
+            } else {
+                break;
+            }
+        }
+
+        match self.nodes[node] {
+            EveOrNode::Eve(ref mut eve) => eve,
+            EveOrNode::Node(_) => panic!("Should have found an eve"),
+        }
+    }
 
     /// Find the eve/root of the node while updating the parent of any node in between
-    pub fn bookkeeping_eve(&mut self, mut node: usize) -> usize {
+    pub fn bookkeeping_eve_index(&mut self, mut node: usize) -> usize {
+        let mut prev_node = None;
         loop {
-            let parent = self.indexes[node];
-            if node == parent {
-                return node;
+            let parent = match &self.nodes[node] {
+                EveOrNode::Eve(_) => return node,
+                EveOrNode::Node(parent) => *parent,
+            };
+
+            // amortize the cost of looking up the eve of a node
+            if let Some(prev_node) = prev_node {
+                self.nodes[prev_node] = EveOrNode::Node(parent);
             }
-            // amortize the cost of looking up the eve of a node.
-            self.indexes[node] = self.indexes[parent];
+            prev_node = Some(node);
 
             node = parent;
         }
@@ -328,35 +408,48 @@ impl DisjointSetWithCount {
 
     /// Does a node map back to itself, i.e. it has no parent?
     pub fn is_an_eve(&self, node: usize) -> bool {
-        return self.indexes[node] == node;
+        match &self.nodes[node] {
+            EveOrNode::Eve(_) => true,
+            EveOrNode::Node(_) => false,
+        }
     }
+}
 
-    pub fn debug_print(&self) {
+impl DisjointSetWithCount {
+    // A more helpful version than the default Debug implementation
+    pub fn debug_string(&mut self) -> String {
         use std::collections::hash_map::HashMap;
         let mut map = HashMap::<usize, Vec<usize>>::new();
         let mut eves = vec![];
         for node in 0..self.size() {
             if self.is_an_eve(node) {
-                eves.push(node);
+                eves.push((node, **self.eve(node)));
             }
-            map.entry(self.indexes[node]).or_default().push(node);
+            map.entry(self.bookkeeping_eve_index(node))
+                .or_default()
+                .push(node);
         }
 
         fn debug_string(
             node: usize,
+            count: usize,
             prefix: &str,
             map: &HashMap<usize, Vec<usize>>,
-            counts: &Vec<usize>,
         ) -> String {
             match map.get(&node) {
                 Some(children) => {
                     let mut result = String::new();
-                    let prefix = format!("{}{}(count={}) <- ", prefix, node, counts[node]);
+                    let prefix = if count > 0 {
+                        format!("{}{}(count={}) <- ", prefix, node, count)
+                    } else {
+                        format!("{}{} <- ", prefix, node)
+                    };
+
                     for child in children.iter() {
                         if child == &node {
                             continue;
                         }
-                        result.push_str(&debug_string(*child, &prefix, map, counts));
+                        result.push_str(&debug_string(*child, 0, &prefix, map));
                     }
                     result
                 }
@@ -364,10 +457,21 @@ impl DisjointSetWithCount {
             }
         }
 
-        for eve in eves {
-            print!("{}", debug_string(eve, "", &map, &self.counts));
+        let mut result = String::new();
+        for (eve, count) in eves {
+            result.push_str(&debug_string(eve, count, "", &map));
         }
-        println!();
+        result.push('\n');
+        return result;
+    }
+}
+
+pub type DisjointSetWithCount = DisjointSet<Count>;
+
+impl DisjointSetWithCount {
+    /// Number of children of the node's eve (plus one for the eve itself)
+    pub fn size_of_eve(&mut self, node: usize) -> usize {
+        self.eve(node).0
     }
 }
 
