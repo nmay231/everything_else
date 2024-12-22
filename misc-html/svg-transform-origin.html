@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .center-text {
+            dominant-baseline: central;
+        }
+    </style>
+</head>
+
+<body>
+    <label>
+        rotate
+        <input type="checkbox" id="enable-rotation">
+    </label>
+    <div style="position: absolute; left: 25vw; width: 50vw">
+
+        <svg style="border: 4px solid black;overflow:visible" viewBox="-100 -100 200 200" width="100%">
+            <circle cx="0" cy="0" r="3" fill="black"></circle>
+
+            <text class="center-text" id="simple-rotate" x="10" y="0" height="10" width="10" fill="blue">
+                -simple-rotate
+            </text>
+            <text style="transform-origin: -10px -10px;" class="center-text" id="simple-rotate-offset" x="10" y="0"
+                height="10" width="10" fill="blue">
+                -simple-rotate-offset
+            </text>
+
+            <text class="center-text" id="transform-rotate" x="10" y="0" height="10" width="10" fill="red">
+                -transform-rotate
+            </text>
+            <text style="transform-origin: -10px -10px;" class="center-text" id="transform-rotate-offset" x="10" y="0"
+                height="10" width="10" fill="red">
+                -transform-rotate-offset
+            </text>
+            <text class="center-text" id="transform-rotate-manual-origin" x="10" y="0" height="10" width="10"
+                fill="red">
+                -transform-rotate-manual-origin
+            </text>
+        </svg>
+    </div>
+    <script>
+        const check = document.getElementById("enable-rotation")
+        check.checked = !!localStorage.getItem("enable-rotation")
+        check.addEventListener("change", (event) => {
+            localStorage.setItem("enable-rotation", check.checked ? "true" : "")
+        })
+
+        let last_frame_handled = Date.now();
+        let tick = 0
+        function frame() {
+            if (!check.checked) {
+                requestAnimationFrame(frame)
+                last_frame_handled = Date.now()
+                return
+            }
+            const now = Date.now()
+            tick += now - last_frame_handled
+            last_frame_handled = now
+
+            document.getElementById("simple-rotate").style.rotate = `${tick / 20}deg`
+            document.getElementById("simple-rotate-offset").style.rotate = `${tick / 20 + 45}deg`
+
+            console.log("a")
+            document.getElementById("transform-rotate").style.transform = `rotate(${tick / 20}deg)`
+            document.getElementById("transform-rotate-offset").style.transform = `rotate(${tick / 20}deg)`
+            document.getElementById("transform-rotate-manual-origin").style.transform = `translate(-30px, -30px) rotate(${tick / 20}deg)`
+            console.log("b")
+
+            requestAnimationFrame(frame)
+        }
+
+        frame();
+    </script>
+</body>
+
+</html>
