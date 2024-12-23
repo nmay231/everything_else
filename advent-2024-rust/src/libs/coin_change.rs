@@ -81,6 +81,33 @@ impl Iterator for CoinChange {
     }
 }
 
+pub struct CoinChangePair {
+    goal: usize,
+    coin_a: usize,
+    coin_b: usize,
+    num_a: usize,
+}
+
+impl CoinChangePair {
+    pub fn try_new(coin_a: usize, coin_b: usize, goal: usize) -> Self {
+        let num_a = coin_a * (goal / coin_a);
+        Self {
+            goal,
+            coin_a,
+            coin_b,
+            num_a,
+        }
+    }
+}
+
+impl Iterator for CoinChangePair {
+    type Item = Vec<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod test_coin_change {
     use std::assert_matches::assert_matches;
