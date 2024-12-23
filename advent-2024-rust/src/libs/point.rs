@@ -135,6 +135,21 @@ impl UsizePoint {
     pub fn neg(&self) -> IsizePoint {
         self.isize().neg()
     }
+
+    #[inline(always)]
+    pub fn mul(&self, scalar: usize) -> Self {
+        Self(self.0 * scalar, self.1 * scalar)
+    }
+
+    #[inline(always)]
+    pub fn piecewise_mul(&self, other: &UsizePoint) -> Self {
+        Self(self.0 * other.0, self.1 * other.1)
+    }
+
+    #[inline(always)]
+    pub fn area(&self) -> usize {
+        self.0 * self.1
+    }
 }
 
 // TODO: Implement as a generic and type aliases for usize and isize, and
@@ -149,6 +164,15 @@ impl IsizePoint {
             && self.1 >= 0
             && (self.0 as usize) < grid_size.0
             && (self.1 as usize) < grid_size.1
+    }
+
+    #[inline(always)]
+    pub fn usize(&self) -> UsizePoint {
+        UsizePoint(self.0 as usize, self.1 as usize)
+    }
+
+    pub fn try_usize(&self) -> Option<UsizePoint> {
+        Some(UsizePoint(self.0.try_into().ok()?, self.1.try_into().ok()?))
     }
 
     #[inline(always)]

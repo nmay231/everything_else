@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.94"
+image = "0.25.5"
+# imageproc = "0.25.0"
 indoc = "2.0.4"
 itertools = "0.13.0"
 lazy_static = "1.4.0"
