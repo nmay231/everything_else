@@ -140,7 +140,7 @@ impl UsizePoint {
 // TODO: Implement as a generic and type aliases for usize and isize, and
 // implement the Add, etc. traits
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct IsizePoint(isize, isize);
+pub struct IsizePoint(pub isize, pub isize);
 
 impl IsizePoint {
     #[inline(always)]
