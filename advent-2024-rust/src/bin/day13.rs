@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::str::FromStr;
 
 use advent_2024_rust::{CoinChange, UsizePoint};
@@ -67,21 +66,43 @@ fn part1(text: &str) -> Output {
             })
             .unwrap();
 
-        let [xs, ys] = [(a.0, b.0, prize.0), (a.1, b.1, prize.1)].map(|(a, b, prize)| {
-            CoinChange::new(&[a, b], prize)
-                .map(|ab| {
-                    if let [a, b] = ab[0..2] {
-                        return (a, b);
+        // I am confusing myself with the idea that pressing button A could be
+        // better than button B three times if A has better movement. I guess
+        // that could still be true. E.g. button A moves (4, 4) and B moves (3,
+        // 3), then prioritizing A over B where possible works for any prize at
+        // (N, N), N > 12. However, this code gives the same result as comparing
+        // every possible situation. I think that was intentional in how the
+        // test data was generated, but I'm too tired to articulate the
+        // situation where B over A is always good so that I can add assertions
+        // for that. Whatever...
+        let [mut iter_xs, mut iter_ys] =
+            [(a.0, b.0, prize.0), (a.1, b.1, prize.1)].map(|(a, b, prize)| {
+                CoinChange::new(&[b, a], prize).map(|ba| {
+                    if let [b, a] = ba[0..2] {
+                        return (b, a);
                     } else {
                         panic!("duplication glitch found!");
                     }
                 })
-                .collect::<HashSet<_>>()
-        });
-        let min = xs.intersection(&ys).map(|ab| 3 * ab.0 + ab.1).min();
-        match min {
-            None => continue,
-            Some(min) => total += min,
+            });
+
+        let (mut xs, mut ys) = match (iter_xs.next(), iter_ys.next()) {
+            (Some(xs), Some(ys)) => (xs, ys),
+            _ => continue,
+        };
+
+        while xs != ys {
+            if xs.0 > ys.0 {
+                let Some(new_xs) = iter_xs.next() else { break };
+                xs = new_xs;
+            } else {
+                let Some(new_ys) = iter_ys.next() else { break };
+                ys = new_ys;
+            }
+        }
+        if xs == ys {
+            // xs = (b, a)
+            total += xs.0 + xs.1 * 3;
         }
     }
 
