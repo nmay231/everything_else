@@ -4,7 +4,7 @@ fn part1(text: &str) -> Output {
     0
 }
 
-fn part2(text: &str) -> Output {
+fn part2(_text: &str) -> Output {
     0
 }
 
@@ -21,11 +21,11 @@ fn main() -> std::io::Result<()> {
 // mod tests {
 //     use crate::part1;
 //     use indoc::indoc;
-
+//
 //     const TEXT: &str = indoc! {"
 //         asdf
 //     "};
-
+//
 //     #[test]
 //     fn part1_given_example() {
 //         assert_eq!(part1(TEXT), 0);
