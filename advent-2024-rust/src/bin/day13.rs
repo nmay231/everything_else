@@ -1,9 +1,11 @@
+use std::collections::HashSet;
 use std::str::FromStr;
 
 use advent_2024_rust::{CoinChange, UsizePoint};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use num_integer::Integer;
 use regex::Regex;
 
 type Output = usize;
@@ -109,8 +111,81 @@ fn part1(text: &str) -> Output {
     total
 }
 
-fn part2(_text: &str) -> Output {
-    0
+fn part2(text: &str) -> Output {
+    let mut total = 0;
+
+    // We chain("") to add a fake trailing newline
+    for (index, (button_a, button_b, prize, _)) in text.lines().chain([""]).tuples().enumerate() {
+        let [a, b, prize] = parse_group(button_a, button_b, prize)
+            .with_context(|| {
+                format!(
+                    "Failed to parse group {} (around line {})",
+                    index,
+                    index * 4
+                )
+            })
+            .unwrap();
+
+        // let prize = prize.add(&UsizePoint(10_000_000_000_000, 10_000_000_000_000));
+        // let x_lcd = a.0 * b.0 / a.0.gcd(&b.0);
+
+        // let [mut iter_xs, mut iter_ys] =
+        let [xs, ys] = [(a.0, b.0, prize.0), (a.1, b.1, prize.1)].map(|(a, b, prize)| {
+            let prize = prize + 10_000_000_000_000;
+            let lcd = a * b; // / a.gcd(&b);
+            let remain = prize % lcd;
+            let div = prize / lcd;
+
+            let set = CoinChange::new(&[b, a], remain)
+                .map(move |ba| {
+                    if let [b_count, a_count] = ba[0..2] {
+                        return (b_count, a_count);
+                    } else {
+                        panic!("duplication glitch found!");
+                    }
+                })
+                .collect::<HashSet<_>>();
+            return (set, prize, lcd);
+            // .cartesian_product(0..div)
+            // .map(move |((b, a), extra)| (b + (div - extra), a + extra))
+
+            // CoinChange::new(&[b, a], prize).map(|ba| {
+            //     if let [b, a] = ba[0..2] {
+            //         return (b, a);
+            //     } else {
+            //         panic!("duplication glitch found!");
+            //     }
+            // })
+        });
+
+        println!("x, y: {:?}", (&xs.0, &ys.0));
+        if xs.0.intersection(&ys.0).count() == 0 {
+            continue;
+        } else {
+            println!("valid? {:?}", (&a, &b));
+        }
+
+        //         let (mut xs, mut ys) = match (iter_xs.next(), iter_ys.next()) {
+        //             (Some(xs), Some(ys)) => (xs, ys),
+        //             _ => continue,
+        //         };
+        //
+        //         while xs != ys {
+        //             if xs.0 > ys.0 {
+        //                 let Some(new_xs) = iter_xs.next() else { break };
+        //                 xs = new_xs;
+        //             } else {
+        //                 let Some(new_ys) = iter_ys.next() else { break };
+        //                 ys = new_ys;
+        //             }
+        //         }
+        //         if xs == ys {
+        //             // xs = (b, a)
+        //             total += xs.0 + xs.1 * 3;
+        //         }
+    }
+
+    total
 }
 
 fn main() -> std::io::Result<()> {
@@ -124,7 +199,7 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::part1;
+    use crate::{part1, part2};
     use indoc::indoc;
 
     const TEXT: &str = indoc! {"
@@ -148,5 +223,10 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(part1(TEXT), 480);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(part2(TEXT), 480);
     }
 }
