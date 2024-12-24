@@ -22,12 +22,18 @@ fn main() -> std::io::Result<()> {
 //     use crate::part1;
 //     use indoc::indoc;
 //
-//     const TEXT: &str = indoc! {"
+//     const TEXT1: &str = indoc! {"
 //         asdf
 //     "};
 //
 //     #[test]
 //     fn part1_given_example() {
-//         assert_eq!(part1(TEXT), 0);
+//         assert_eq!(part1(TEXT1), 0);
+//     }
+//
+//     #[rstest::rstest]
+//     #[case(TEXT1, 0)]
+//     fn part1_given_examples(#[case] text: &str, #[case] expected: usize) {
+//         assert_eq!(part1(text), expected);
 //     }
 // }
