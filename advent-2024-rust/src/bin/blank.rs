@@ -19,7 +19,6 @@ fn main() -> std::io::Result<()> {
 
 // #[cfg(test)]
 // mod tests {
-//     use crate::part1;
 //     use indoc::indoc;
 //
 //     const TEXT1: &str = indoc! {"
@@ -28,12 +27,12 @@ fn main() -> std::io::Result<()> {
 //
 //     #[test]
 //     fn part1_given_example() {
-//         assert_eq!(part1(TEXT1), 0);
+//         assert_eq!(crate::part1(TEXT1), 0);
 //     }
 //
 //     #[rstest::rstest]
 //     #[case(TEXT1, 0)]
 //     fn part1_given_examples(#[case] text: &str, #[case] expected: usize) {
-//         assert_eq!(part1(text), expected);
+//         assert_eq!(crate::part1(text), expected);
 //     }
 // }
