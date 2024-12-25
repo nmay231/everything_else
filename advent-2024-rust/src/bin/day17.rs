@@ -88,6 +88,28 @@ fn part1(text: &str) -> Output {
     return out.iter().join(",");
 }
 
+/// I think my strategy for part2 will be to imitate the training of a Neural
+/// Network. So, we will go through the instructions of the program one number
+/// at a time and back-propagate the possible values as iterators based on the
+/// instructions in the program. Once we get to the first instruction, we
+/// eliminate any that contradict the initial values of B and C. This then
+/// generates possible values of A. We can then repeat with the second number in
+/// the instructions and find out which values of A intersect with that. Doing
+/// this for the first two or three instructions should already limit the
+/// possible values by quite a bit. In which case we can just start brute
+/// forcing the possible A's based on that iterator.
+///
+/// However, I don't know how much better than simple brute force that will be.
+/// Perhaps I could be more clever if I'm smart enough to do it. Here's what I
+/// mean. If we have to generate 2 as the first number, then B must be of the
+/// form `8k + 2`. Then based on the third to last instruction ("decompiled" to
+/// `B = B ^ 6`) then it must be `8k + 4`. Then based on the fourth to last
+/// instruction `B ^ C = 8k + 4`.
+///
+/// Okay, I've looked at the instructions more closely and realized that the
+/// final output is basically based on the value of each group of 3 bits, so I
+/// think I can manually solve it without too much trouble. Maybe not, but in
+/// any case, I need to eat dinner with family, so I'll be back. Merry Christmas.
 fn part2(_text: &str) -> Output {
     String::new()
 }
