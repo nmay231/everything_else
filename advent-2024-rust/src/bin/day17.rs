@@ -49,77 +49,40 @@ fn part1(text: &str) -> Output {
         let opcode = instructions[head];
         let operand = instructions[head + 1];
 
+        // Condensed summary
+        // 0, 6, 7: copy a modified A into A, B, or C respectively.
+        // 1, 4: XOR either the literal operand or C (respectively) into B
+        // 2: truncate the combo operand and move into B
+        // 5: print out combo operator
+        // 3: Jump to operand if A != 0
         match opcode {
-            // The adv instruction (opcode 0) performs division. The numerator
-            // is the value in the A register. The denominator is found by
-            // raising 2 to the power of the instruction's combo operand. (So,
-            // an operand of 2 would divide A by 4 (2^2); an operand of 5 would
-            // divide A by 2^B.) The result of the division operation is
-            // truncated to an integer and then written to the A register.
-            0 => {
-                registers[A] /= 2_usize.pow(interpret_combo_operand(operand, registers) as u32);
-                head += 2;
-            }
-            // The bxl instruction (opcode 1) calculates the bitwise XOR of
-            // register B and the instruction's literal operand, then stores the
-            // result in register B.
-            1 => {
-                registers[B] ^= operand;
-                head += 2;
-            }
-            // The bst instruction (opcode 2) calculates the value of its combo
-            // operand modulo 8 (thereby keeping only its lowest 3 bits), then
-            // writes that value to the B register.
-            2 => {
-                registers[B] = 0b111 & interpret_combo_operand(operand, registers);
-                head += 2;
-            }
-            // The jnz instruction (opcode 3) does nothing if the A register is
-            // 0, However, if the A register is not zero, it jumps by setting
-            // the instruction pointer to the value of its literal operand; if
-            // this instruction jumps, the instruction pointer is not increased
-            // by 2 after this instruction.
-            3 => {
-                if registers[A] == 0 {
-                    head += 2;
-                } else {
-                    head = operand;
-                }
-            }
-            // The bxc instruction (opcode 4) calculates the bitwise XOR of
-            // register B and register C, then stores the result in register B.
-            // (For legacy reasons, this instruction reads an operand but
-            // ignores it.)
-            4 => {
-                registers[B] ^= registers[C];
-                head += 2;
-            }
-            // The out instruction (opcode 5) calculates the value of its combo
-            // operand modulo 8, then outputs that value. (If a program outputs
-            // multiple values, they are separated by commas.)
-            5 => {
-                out.push(0b111 & interpret_combo_operand(operand, registers));
-                head += 2;
-            }
-            // The bdv instruction (opcode 6) works exactly like the adv
-            // instruction except that the result is stored in the B register.
-            // (The numerator is still read from the A register.)
+            // 0, 6, 7: copy a modified A into A, B, or C respectively.
+            0 => registers[A] /= 2_usize.pow(interpret_combo_operand(operand, registers) as u32),
             6 => {
                 registers[B] =
                     registers[A] / 2_usize.pow(interpret_combo_operand(operand, registers) as u32);
-                head += 2;
             }
-            // The cdv instruction (opcode 7) works exactly like the adv
-            // instruction except that the result is stored in the C register.
-            // (The numerator is still read from the A register.)
             7 => {
                 registers[C] =
                     registers[A] / 2_usize.pow(interpret_combo_operand(operand, registers) as u32);
-                head += 2;
             }
-
-            opcode => panic!("Unexpected opcode {}", opcode),
+            // 1, 4: XOR either the literal operand or C (respectively) into B
+            1 => registers[B] ^= operand,
+            4 => registers[B] ^= registers[C],
+            // 2: truncate the combo operand and move into B
+            2 => registers[B] = 0b111 & interpret_combo_operand(operand, registers),
+            // 5: print out combo operator
+            5 => out.push(0b111 & interpret_combo_operand(operand, registers)),
+            // 3: Jump to operand if A != 0
+            3 => {
+                if registers[A] != 0 {
+                    head = operand;
+                    continue;
+                }
+            }
+            8.. => panic!("Unexpected opcode {}", opcode),
         }
+        head += 2;
     }
 
     return out.iter().join(",");
@@ -153,5 +116,17 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1), "4,6,3,5,6,3,5,2,1,0");
+    }
+
+    const TEXT2: &str = indoc! {"
+        Register A: 117440
+        Register B: 0
+        Register C: 0
+
+        Program: 0,3,5,4,3,0
+    "};
+    #[test]
+    fn part2a_quine() {
+        assert_eq!(crate::part1(TEXT2), "0,3,5,4,3,0");
     }
 }
