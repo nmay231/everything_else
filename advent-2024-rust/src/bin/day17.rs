@@ -90,37 +90,10 @@ fn part1(text: &str) -> Output {
     return out.iter().join(",");
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum UnsettledBit {
-    One,
-    Zero,
-    Unknown,
-}
-impl UnsettledBit {
-    fn to_bool(&self) -> bool {
-        match self {
-            UnsettledBit::One => true,
-            UnsettledBit::Zero => false,
-            UnsettledBit::Unknown => panic!("Should this be zero or what? Or maybe I always have to filter unknowns before converting"),
-        }
-    }
-}
-impl From<bool> for UnsettledBit {
-    fn from(value: bool) -> Self {
-        if value {
-            UnsettledBit::One
-        } else {
-            UnsettledBit::Zero
-        }
-    }
-}
-
-fn from_bits<'a>(bits: impl DoubleEndedIterator + Iterator<Item = &'a UnsettledBit>) -> Usize {
+fn from_bits<'a>(bits: impl DoubleEndedIterator + Iterator<Item = &'a bool>) -> usize {
     bits.rev()
-        .fold(0, |sum, bit| 2 * sum + if bit.to_bool() { 1 } else { 0 })
+        .fold(0, |sum, bit| 2 * sum + if *bit { 1 } else { 0 })
 }
-
-type Usize = usize;
 
 /// I could try to write a general purpose algorithm to turn every possible
 /// program into a quine, but I think I'll just optimize for my input for now at
@@ -162,8 +135,7 @@ fn part2(_text: &str) -> Output {
 
     let output = [2, 4, 1, 1, 7, 5, 0, 3, 4, 3, 1, 6, 5, 5, 3, 0];
     // Numbers are vectors of bits with least significant at index 0
-    let mut possible_a: Vec<VecDeque<UnsettledBit>> =
-        vec![std::iter::repeat_n(UnsettledBit::Zero, 8 + 3).collect()];
+    let mut possible_a: Vec<VecDeque<bool>> = vec![std::iter::repeat_n(false, 8 + 3).collect()];
 
     // As we iterate through the outputted numbers, we keep updating the value
     // of a to reflect what's valid. So in other words, A represents a valid
@@ -184,7 +156,7 @@ fn part2(_text: &str) -> Output {
                     a.push_front((b & 1 == 1).into());
 
                     // exec(B ^= 1)
-                    let b: Usize = b ^ 1;
+                    let b: usize = b ^ 1;
                     // exec(C = A / 2**B)
                     let c_bits = a
                         .iter()
@@ -231,8 +203,6 @@ fn main() -> std::io::Result<()> {
 mod tests {
     use indoc::indoc;
 
-    use crate::UnsettledBit;
-
     const TEXT1: &str = indoc! {"
         Register A: 729
         Register B: 0
@@ -258,13 +228,11 @@ mod tests {
         assert_eq!(crate::part1(TEXT2), "0,3,5,4,3,0");
     }
 
-    use UnsettledBit as B;
-
     #[rstest::rstest]
-    #[case::n0(vec![].into(), 0b0)]
-    #[case::n4(vec![B::Zero, B::Zero, B::One], 0b100)]
-    #[case::n10(vec![B::Zero, B::One, B::Zero, B::One], 0b1010)]
-    fn test_(#[case] bits: Vec<UnsettledBit>, #[case] result: usize) {
+    #[case::n0(vec![], 0b0)]
+    #[case::n4(vec![false, false, true], 0b100)]
+    #[case::n10(vec![false, true, false, true], 0b1010)]
+    fn test_(#[case] bits: Vec<bool>, #[case] result: usize) {
         assert_eq!(crate::from_bits(bits.iter()), result);
     }
 }
