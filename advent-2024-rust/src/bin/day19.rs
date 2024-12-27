@@ -1,88 +1,17 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
-use advent_2024_rust::Zipper;
 use itertools::Itertools;
 
 type Output = usize;
 
-#[derive(Debug, Clone, Default)]
-struct Trie {
-    map: HashMap<char, Self>,
-    is_terminal: bool,
-}
-
-#[derive(Debug, Clone)]
-struct TrieZipper {
-    parents: Vec<(Trie, char)>,
-    current: Trie,
-}
-
-impl Zipper for TrieZipper {
-    type Source = Trie;
-
-    type Index = char;
-
-    fn new(root: Self::Source) -> Self {
-        Self {
-            current: root,
-            parents: vec![],
-        }
-    }
-
-    fn source(&mut self) -> &mut Self::Source {
-        &mut self.current
-    }
-
-    fn child(mut self, index: Self::Index) -> Result<Self, Self> {
-        match self.current.map.remove(&index) {
-            None => Err(self),
-            Some(child) => {
-                self.parents.push((self.current, index));
-                self.current = child;
-                Ok(self)
-            }
-        }
-    }
-
-    fn parent(mut self) -> Result<Self, Self> {
-        match self.parents.pop() {
-            None => Err(self),
-            Some((mut parent, key)) => {
-                parent.map.insert(key, self.current);
-                self.current = parent;
-                Ok(self)
-            }
-        }
-    }
-
-    fn unwrap_source(self) -> Self::Source {
-        self.current
-    }
-}
-
 fn part1(text: &str) -> Output {
     let towels = text.split_once('\n').expect("Missing towels").0.split(", ");
 
-    let mut trie = TrieZipper::new(Trie::default());
-    for towel in towels {
-        for char in towel.chars() {
-            trie.source().map.entry(char).or_default();
-            trie = trie.child(char).unwrap();
-        }
-        trie.source().is_terminal = true;
-        trie = trie.to_root();
-    }
-    let trie = trie.unzip();
-
-    // Sanity check
-    assert!(!trie.is_terminal, "There shouldn't be empty towel patterns");
-    let towels = text.split_once('\n').expect("Missing towels").0.split(", ");
-    for towel in towels {
-        let mut tmp = &trie;
-        for char in towel.chars() {
-            tmp = tmp.map.get(&char).expect("towels to be init'ed correctly");
-        }
-        assert!(tmp.is_terminal);
+    let characters = ['w', 'u', 'b', 'r', 'g'];
+    let mut str_len = 1;
+    let mut combinations = vec![""];
+    while combinations.len() * 4 < characters.len().pow(str_len) {
+        for (prefix, next_char) in combinations.iter().cartesian_product(characters) {}
     }
 
     let mut total = 0;
