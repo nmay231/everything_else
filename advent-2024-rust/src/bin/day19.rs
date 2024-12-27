@@ -1,7 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
 use advent_2024_rust::Zipper;
-use anyhow::Context;
 use itertools::Itertools;
 
 type Output = usize;
@@ -41,36 +40,29 @@ impl Trie {
         return false;
     }
 
-    /// Adds a new pattern and returns self
-    fn add_new(self, word: &str) -> Self {
-        // TODO: Is there a way to use my zipper pattern while only holding a
-        // `&mut` reference?
-        // TODO: Also, I know that putting the data into a zipper and then
-        // unzipping repeatedly is terrible for performance, but it works well
-        // enough for this while still being convenient.
+    /// Adds a new pattern
+    fn add_new(&mut self, word: &str) {
         let mut zipper = TrieZipper::new(self);
         for char in word.chars() {
             zipper.source().map.entry(char).or_default();
-            zipper = zipper.child(char).unwrap();
+            assert!(zipper.child(char).is_ok());
         }
         zipper.source().is_terminal = true;
-        zipper = zipper.to_root();
-        zipper.unzip()
+        zipper.to_root();
     }
 }
 
-#[derive(Debug, Clone)]
-struct TrieZipper {
+#[derive(Debug)]
+struct TrieZipper<'a> {
     parents: Vec<(Trie, char)>,
-    current: Trie,
+    current: &'a mut Trie,
 }
 
-impl Zipper for TrieZipper {
+impl<'a> Zipper<'a> for TrieZipper<'a> {
     type Source = Trie;
-
     type Index = char;
 
-    fn new(root: Self::Source) -> Self {
+    fn new(root: &'a mut Self::Source) -> Self {
         Self {
             current: root,
             parents: vec![],
@@ -81,30 +73,26 @@ impl Zipper for TrieZipper {
         &mut self.current
     }
 
-    fn child(mut self, index: Self::Index) -> Result<Self, Self> {
+    fn child(&mut self, index: Self::Index) -> Result<(), ()> {
         match self.current.map.remove(&index) {
-            None => Err(self),
+            None => Err(()),
             Some(child) => {
-                self.parents.push((self.current, index));
-                self.current = child;
-                Ok(self)
+                self.parents
+                    .push((std::mem::replace(self.current, child), index));
+                Ok(())
             }
         }
     }
 
-    fn parent(mut self) -> Result<Self, Self> {
+    fn parent(&mut self) -> Result<(), ()> {
         match self.parents.pop() {
-            None => Err(self),
+            None => Err(()),
             Some((mut parent, key)) => {
-                parent.map.insert(key, self.current);
-                self.current = parent;
-                Ok(self)
+                std::mem::swap(self.current, &mut parent);
+                self.current.map.insert(key, parent);
+                Ok(())
             }
         }
-    }
-
-    fn unwrap_source(self) -> Self::Source {
-        self.current
     }
 }
 
@@ -121,7 +109,7 @@ fn part1(text: &str) -> Output {
     for towel in towels {
         let chars = towel.chars().collect_vec();
         if !trie.is_composable(&chars) {
-            trie = trie.add_new(towel);
+            trie.add_new(towel);
         }
     }
 
@@ -171,7 +159,7 @@ fn part2(text: &str) -> Output {
 
     let mut trie = Trie::default();
     for towel in towels {
-        trie = trie.add_new(towel);
+        trie.add_new(towel);
     }
 
     let mut total = 0;
@@ -255,7 +243,7 @@ mod tests {
         let mut trie = crate::Trie::default();
 
         for towel in towels.iter() {
-            trie = trie.add_new(towel);
+            trie.add_new(towel);
         }
         assert!(!trie.is_terminal, "There shouldn't be empty towel patterns");
         for towel in towels.iter() {
