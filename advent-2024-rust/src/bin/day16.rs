@@ -14,7 +14,7 @@ enum Cell {
 }
 
 fn part1(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let mut player = None;
     let grid = text
         .chars()
@@ -96,7 +96,7 @@ fn part1(text: &str) -> Output {
 }
 
 fn part2(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let mut player = None;
     let grid = text
         .chars()

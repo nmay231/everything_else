@@ -8,7 +8,7 @@ const EMPTY: char = '.';
 const GUARD: char = '^';
 
 fn part1(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let mut grid = text.chars().filter(|c| c != &'\n').collect::<Vec<_>>();
     let guard = grid
         .iter()

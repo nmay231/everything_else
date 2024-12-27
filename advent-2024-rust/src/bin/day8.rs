@@ -6,7 +6,7 @@ use itertools::Itertools;
 type Output = usize;
 
 fn part1(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let grid = text.trim().chars().filter(|c| c != &'\n').collect_vec();
     let mut antennas = HashMap::<char, Vec<UsizePoint>>::new();
 
@@ -43,7 +43,7 @@ fn part1(text: &str) -> Output {
 }
 
 fn part2(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let grid = text.trim().chars().filter(|c| c != &'\n').collect_vec();
     let mut antennas = HashMap::<char, Vec<UsizePoint>>::new();
 

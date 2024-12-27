@@ -5,7 +5,7 @@ use advent_2024_rust::{Direc, DisjointSet, DisjointSetWithCount, Eve, UsizePoint
 type Output = usize;
 
 fn part1(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let grid = text.chars().filter(|c| c != &'\n').collect::<Vec<_>>();
     let mut regions = DisjointSetWithCount::new(grid.len());
     let mut perimeter = vec![0_usize; grid.len()];
@@ -77,7 +77,7 @@ impl Eve for Region {
 }
 
 fn part2(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.find('\n').unwrap(), text.lines().count());
+    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
     let grid = text.chars().filter(|c| c != &'\n').collect::<Vec<_>>();
 
     let mut regions = DisjointSet::<Region>::new(grid.len());

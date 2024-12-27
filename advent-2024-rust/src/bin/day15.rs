@@ -81,7 +81,7 @@ fn part1(text: &str) -> Output {
     assert_eq!(stage, 1);
 
     let width = text.find('\n').expect("there to be more than one line");
-    let grid_size = &UsizePoint(width, grid.len() / width);
+    let grid_size = &UsizePoint(grid.len() / width, width);
 
     for (i, mov) in moves.char_indices() {
         let direc = match mov {
