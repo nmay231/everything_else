@@ -16,8 +16,8 @@ pub trait Zipper: Sized {
     /// Convert the source type into a zipper view
     fn new(root: Self::Source) -> Self;
 
-    /// Get a reference to the current root of the source tree
-    fn source(&self) -> &Self::Source;
+    /// Get a mutable reference to the current root of the source tree
+    fn source(&mut self) -> &mut Self::Source;
 
     /// Get the child at index as a zipper, or return the current zipper if index
     /// does not exist
@@ -27,17 +27,23 @@ pub trait Zipper: Sized {
     /// the root
     fn parent(self) -> Result<Self, Self>;
 
-    /// Extract the current source type consuming `self`. Use `.unzip()` if you
-    /// need to get the source type of the root.
-    fn unwrap_source(self) -> Self::Source;
-
-    /// Convert a zipper view into the source type
-    fn unzip(mut self) -> Self::Source {
+    /// Traverse up to the parent node and return, see `unzip` for a method that
+    /// unwraps the zipper type after traversing to the root node
+    fn to_root(mut self) -> Self {
         loop {
             match self.parent() {
                 Ok(parent) => self = parent,
-                Err(root) => return root.unwrap_source(),
+                Err(root) => return root,
             }
         }
+    }
+
+    /// Extract the current source type consuming `self`. Use `.unzip()` if you
+    /// need to get the root of the source type
+    fn unwrap_source(self) -> Self::Source;
+
+    /// Convert a zipper view into the source type
+    fn unzip(self) -> Self::Source {
+        self.to_root().unwrap_source()
     }
 }
