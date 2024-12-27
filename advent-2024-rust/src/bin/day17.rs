@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use indoc::indoc;
 use itertools::Itertools;
 
 type Output = String;
@@ -91,22 +90,35 @@ fn part1(text: &str) -> Output {
     return out.iter().join(",");
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// struct PartialSolution {
-//     a: u64,
-//     // B is fully determined by A
-//     // c: u64,
-//     /// We need to know which bits of a have been determined, so this is the
-//     /// power of 2 with a bit larger than all of the bits in A
-//     max_bit: u64,
-//     // n_steps: u64,
-// }
-//
-// impl PartialSolution {
-//     fn get_a(&self) -> u64 {
-//         self.a - (1 << self.a.ilog2())
-//     }
-// }
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum UnsettledBit {
+    One,
+    Zero,
+    Unknown,
+}
+impl UnsettledBit {
+    fn to_bool(&self) -> bool {
+        match self {
+            UnsettledBit::One => true,
+            UnsettledBit::Zero => false,
+            UnsettledBit::Unknown => panic!("Should this be zero or what? Or maybe I always have to filter unknowns before converting"),
+        }
+    }
+}
+impl From<bool> for UnsettledBit {
+    fn from(value: bool) -> Self {
+        if value {
+            UnsettledBit::One
+        } else {
+            UnsettledBit::Zero
+        }
+    }
+}
+
+fn from_bits<'a>(bits: impl DoubleEndedIterator + Iterator<Item = &'a UnsettledBit>) -> Usize {
+    bits.rev()
+        .fold(0, |sum, bit| 2 * sum + if bit.to_bool() { 1 } else { 0 })
+}
 
 type Usize = usize;
 
@@ -150,128 +162,60 @@ fn part2(_text: &str) -> Output {
 
     let output = [2, 4, 1, 1, 7, 5, 0, 3, 4, 3, 1, 6, 5, 5, 3, 0];
     // Numbers are vectors of bits with least significant at index 0
-    let mut possible_a = vec![VecDeque::new()];
+    let mut possible_a: Vec<VecDeque<UnsettledBit>> =
+        vec![std::iter::repeat_n(UnsettledBit::Zero, 8 + 3).collect()];
 
     // As we iterate through the outputted numbers, we keep updating the value
     // of a to reflect what's valid. So in other words, A represents a valid
     // *starting* value of A while B and C are the current possible values.
-    for (n_ins, next_ins) in output.into_iter().enumerate() {
+    for next_ins in output.into_iter().rev() {
         possible_a = possible_a
             .into_iter()
             .flat_map(|a| {
-                let mut new_a = vec![];
+                let mut possible_a = vec![];
+
+                // exec(B = 0b111 & A)
                 for b in 0..8 {
                     let mut a = a.clone();
 
-                    // Inverse of exec(B = 0b111 & A)
-                    a.push_front(b & 4 == 4);
-                    a.push_front(b & 2 == 2);
-                    a.push_front(b & 1 == 1);
-                    // println!("b, a: {:?}", (b, &a));
+                    // Inverse of exec(A = A / 2**3)
+                    a.push_front((b & 4 == 4).into());
+                    a.push_front((b & 2 == 2).into());
+                    a.push_front((b & 1 == 1).into());
 
-                    // exec(b ^= 1)
+                    // exec(B ^= 1)
                     let b: Usize = b ^ 1;
-                    // exec(C = A / 2**B), also the inverse of exec(A = A / 2**3)
-                    let mut c_bits: Vec<bool> =
-                        a.iter().skip(3 * n_ins + b).take(3).map(|b| *b).collect();
-
-                    let c_bits_count = c_bits.len();
-                    assert!(c_bits_count < 4);
-
-                    c_bits.extend(std::iter::repeat_n(false, 3 - c_bits_count));
-                    assert_eq!(c_bits.len(), 3);
-
-                    // Possible C's based on the bits present in A
-                    let mut possible_c = vec![];
-                    for mut new_bits in 0..((2 as Usize).pow(3 - c_bits_count as u32)) {
-                        new_bits <<= c_bits_count;
-                        possible_c.push(
-                            new_bits
-                                | (c_bits[0] as Usize)
-                                | (c_bits[1] as Usize * 2)
-                                | (c_bits[2] as Usize * 4),
-                        );
-                    }
-
-                    // Filter to C's that produce the current instruction
-                    let possible_c = possible_c
-                        .into_iter()
-                        .filter_map(|c| {
-                            assert!(c < 8);
-                            // exec(B ^= C), and exec(B ^= 6)
-                            let b = (b ^ c ^ 6) & 0b111;
-                            // exec(print(B))
-                            if b == next_ins {
-                                Some(vec![c & 1 == 1, c & 2 == 2, c & 4 == 4])
-                            } else {
-                                None
-                            }
-                        })
+                    // exec(C = A / 2**B)
+                    let c_bits = a
+                        .iter()
+                        .skip(b)
+                        .take(3)
+                        .map(|bit| bit.clone())
                         .collect_vec();
 
-                    // Update A with new bits of C if needed
-                    for bits in possible_c {
-                        let mut asdf = a.clone();
-                        let bits_copy = bits.clone();
-                        for (i, bit) in bits.into_iter().enumerate() {
-                            let i = i + 3 * n_ins + b;
-                            if i >= asdf.len() {
-                                asdf.push_back(bit);
-                            } else {
-                                asdf[i] = bit;
-                            }
-                        }
-
-                        println!("init_a, c, b, new_a: {:?}", (&a, &bits_copy, b, &asdf));
-
-                        new_a.push(asdf);
+                    if c_bits.len() != 3 {
+                        continue;
                     }
+
+                    let c_int = from_bits(c_bits.iter());
+                    assert!(c_int < 8);
+                    // exec(B ^= C), and exec(B ^= 6)
+                    let end_b = (b ^ c_int ^ 6) & 0b111;
+                    if end_b != next_ins {
+                        continue;
+                    }
+                    possible_a.push(a);
                 }
-                new_a
+                return possible_a;
             })
             .collect();
-
-        for a in &possible_a {
-            let a_int = a
-                .iter()
-                .rev()
-                .fold(0_usize, |res, bit| res * 2 + if *bit { 1 } else { 0 });
-            let program = indoc! {"
-                Register A: REPLACE
-                Register B: 0
-                Register C: 0
-
-                Program: 2,4,1,1,7,5,0,3,4,3,1,6,5,5,3,0
-
-            "}
-            .replace("REPLACE", &a_int.to_string());
-            println!("a = {} ({:?}): {:?}", a_int, a, (part1(&program)));
-        }
-        break;
     }
-
-    // for (n_ins, next_ins) in output.into_iter().enumerate() {
-    //     possibilities = possibilities
-    //         .into_iter()
-    //         .flat_map(|solution| {
-    //             let mut tmp = vec![];
-    //             for mut b in 0_u64..8 {
-    //                 let mut solution = solution.clone();
-    //                 let result = {
-    //                     b ^= 1;
-    //                     let a = ((solution.get_a() << 3) & b);
-    //                     let c = a >> b;
-    //                     let x = b.ilog2();
-    //                     let c = solution.a >> b;
-    //                     // ;solution.c
-    //                 };
-    //             }
-    //             tmp
-    //         })
-    //         .collect();
-    // }
-
-    String::new()
+    return possible_a
+        .iter()
+        .map(|bits| from_bits(bits.iter()))
+        .min()
+        .unwrap()
+        .to_string();
 }
 
 fn main() -> std::io::Result<()> {
@@ -286,6 +230,8 @@ fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
+
+    use crate::UnsettledBit;
 
     const TEXT1: &str = indoc! {"
         Register A: 729
@@ -310,5 +256,15 @@ mod tests {
     #[test]
     fn part2a_quine() {
         assert_eq!(crate::part1(TEXT2), "0,3,5,4,3,0");
+    }
+
+    use UnsettledBit as B;
+
+    #[rstest::rstest]
+    #[case::n0(vec![].into(), 0b0)]
+    #[case::n4(vec![B::Zero, B::Zero, B::One], 0b100)]
+    #[case::n10(vec![B::Zero, B::One, B::Zero, B::One], 0b1010)]
+    fn test_(#[case] bits: Vec<UnsettledBit>, #[case] result: usize) {
+        assert_eq!(crate::from_bits(bits.iter()), result);
     }
 }
