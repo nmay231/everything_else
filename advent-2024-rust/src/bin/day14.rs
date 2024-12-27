@@ -57,6 +57,8 @@ fn _wait() {
     let buf = &mut String::new();
     io::stdin().read_line(buf).unwrap();
 }
+/// Decided to go with images instead of terminal output, which is good since my
+/// solution was around ~8000.
 fn _print_grid(grid: &[char], grid_size: &UsizePoint) {
     let grid = grid
         .chunks(grid_size.0)
@@ -66,6 +68,12 @@ fn _print_grid(grid: &[char], grid_size: &UsizePoint) {
     println!("\n\n{}", grid);
 }
 
+/// Update: Turns out I was just stupid and switched the coordinates of
+/// UsizePoint, because it's defined as (rows, cols)=(y, x) instead of (x, y).
+/// My strategy of perusing through samples of the grids would've worked just
+/// fine otherwise. I'm going to make a new point type that doesn't have this
+/// stupid issue.
+///
 /// I was originally going to manually scan through large 10x10 renderings of
 /// each grid, but I didn't find it because some sort of horizontal smearing is
 /// occurring especially with larger grid. I don't have the free-time to debug
@@ -77,7 +85,7 @@ fn _print_grid(grid: &[char], grid_size: &UsizePoint) {
 /// kinda funny turning expectations on its head by requiring the "dumb"/simple
 /// solution over any optimizations.
 fn part2(text: &str) -> () {
-    let grid_size = &UsizePoint(101, 103);
+    let grid_size = &UsizePoint(103, 101);
     let empty_grid = std::iter::repeat_n([0_u8, 0, 0], grid_size.area()).collect_vec();
     let white_color = [255_u8, 255, 255];
 
@@ -86,42 +94,25 @@ fn part2(text: &str) -> () {
         .enumerate()
         .map(|(line_index, line)| {
             let [x, y, dx, dy] = parse_line(line, line_index);
-            (UsizePoint(x as usize, y as usize), IsizePoint(dx, dy))
+            (UsizePoint(y as usize, x as usize), IsizePoint(dy, dx))
         })
         .collect_vec();
 
-    let meta_size = &UsizePoint(1, 1).mul(10);
+    let meta_size = &UsizePoint(1, 1).mul(20);
     let large_grid_size = grid_size.mul(meta_size.0);
 
     for meta_i in 0.. {
-        if (meta_i + 1) * meta_size.area() < 7916 {
-            for i in 0..meta_size.area() {
-                // let offset = &UsizePoint::from_index(meta_size, i).piecewise_mul(grid_size);
-                robots = robots
-                    .into_iter()
-                    .map(|(pos, delta)| {
-                        // ten_by_ten[pos.add(offset).as_index(&large_grid_size)] = white_color;
-                        let pos = UsizePoint(
-                            (pos.0 as isize + delta.0).rem_euclid(grid_size.0 as isize) as usize,
-                            (pos.1 as isize + delta.1).rem_euclid(grid_size.1 as isize) as usize,
-                        );
-                        (pos, delta)
-                    })
-                    .collect();
-            }
-            continue;
+        if meta_i * meta_size.area() > grid_size.area() {
+            break;
         }
+
         let mut ten_by_ten = empty_grid.repeat(meta_size.area());
         for i in 0..meta_size.area() {
             let offset = &UsizePoint::from_index(meta_size, i).piecewise_mul(grid_size);
             robots = robots
                 .into_iter()
                 .map(|(pos, delta)| {
-                    ten_by_ten[pos.add(offset).as_index(
-                        &large_grid_size, // I thought maybe there was an off-by-one error with
-                                          // the grid size, but that doesn't fix the error.
-                                          // &large_grid_size.add(&UsizePoint(0, 1))
-                    )] = white_color;
+                    ten_by_ten[pos.add(offset).as_index(&large_grid_size)] = white_color;
                     let pos = UsizePoint(
                         (pos.0 as isize + delta.0).rem_euclid(grid_size.0 as isize) as usize,
                         (pos.1 as isize + delta.1).rem_euclid(grid_size.1 as isize) as usize,
@@ -130,33 +121,38 @@ fn part2(text: &str) -> () {
                 })
                 .collect();
         }
+
+        let folder = format!("day14-images-{}x{}", meta_size.1, meta_size.0);
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&folder)
+            .unwrap();
         image::save_buffer(
             &format!(
-                "./sample.png",
-                // meta_size.0,
-                // meta_size.1,
-                // meta_i * meta_size.area(),
-                // (meta_i + 1) * meta_size.area() - 1
+                "{}/samples-{}..{}.png",
+                &folder,
+                meta_i * meta_size.area(),
+                (meta_i + 1) * meta_size.area() - 1
             ),
             &ten_by_ten.as_flattened(),
-            large_grid_size.0 as u32,
             large_grid_size.1 as u32,
+            large_grid_size.0 as u32,
             image::ExtendedColorType::Rgb8,
         )
         .unwrap();
+
         println!(
             "iterations: {}..={}",
             meta_i * meta_size.area(),
             (meta_i + 1) * meta_size.area() - 1
         );
-        break;
     }
 }
 
 fn main() -> std::io::Result<()> {
     let text = std::fs::read_to_string("./assets/day14.txt")?;
 
-    println!("part 1 result = {:?}", part1(&text, IsizePoint(101, 103)));
+    println!("part 1 result = {:?}", part1(&text, IsizePoint(103, 101)));
     part2(&text);
 
     Ok(())
@@ -185,6 +181,6 @@ mod tests {
 
     #[test]
     fn part1_given_example() {
-        assert_eq!(part1(TEXT, IsizePoint(11, 7)), 12);
+        assert_eq!(part1(TEXT, IsizePoint(7, 11)), 12);
     }
 }
