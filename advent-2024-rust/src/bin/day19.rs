@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use advent_2024_rust::Zipper;
+use advent_2024_rust::ZipperTrait;
 use itertools::Itertools;
 
 type Output = usize;
@@ -42,57 +42,25 @@ impl Trie {
 
     /// Adds a new pattern
     fn add_new(&mut self, word: &str) {
-        let mut zipper = TrieZipper::new(self);
+        let mut zipper = self.zipper();
         for char in word.chars() {
             zipper.source().map.entry(char).or_default();
-            assert!(zipper.child(char).is_ok());
+            assert!(zipper.to_child(char).is_ok());
         }
         zipper.source().is_terminal = true;
         zipper.to_root();
     }
 }
 
-#[derive(Debug)]
-struct TrieZipper<'a> {
-    parents: Vec<(Trie, char)>,
-    current: &'a mut Trie,
-}
-
-impl<'a> Zipper<'a> for TrieZipper<'a> {
-    type Source = Trie;
+impl<'a> ZipperTrait<'a> for Trie {
     type Index = char;
 
-    fn new(root: &'a mut Self::Source) -> Self {
-        Self {
-            current: root,
-            parents: vec![],
-        }
+    fn pop_child(&mut self, index: &Self::Index) -> Option<Self> {
+        self.map.remove(index)
     }
 
-    fn source(&mut self) -> &mut Self::Source {
-        &mut self.current
-    }
-
-    fn child(&mut self, index: Self::Index) -> Result<(), ()> {
-        match self.current.map.remove(&index) {
-            None => Err(()),
-            Some(child) => {
-                self.parents
-                    .push((std::mem::replace(self.current, child), index));
-                Ok(())
-            }
-        }
-    }
-
-    fn parent(&mut self) -> Result<(), ()> {
-        match self.parents.pop() {
-            None => Err(()),
-            Some((mut parent, key)) => {
-                std::mem::swap(self.current, &mut parent);
-                self.current.map.insert(key, parent);
-                Ok(())
-            }
-        }
+    fn insert_child(&mut self, index: Self::Index, child: Self) {
+        self.map.insert(index, child);
     }
 }
 
