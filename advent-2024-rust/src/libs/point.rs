@@ -139,6 +139,7 @@ impl<T: MyNumber> Point<T> {
         xs[1].clone() - xs[0] + &(ys[1].clone() - ys[0])
     }
 
+    /// self.x * self.y
     #[inline(always)]
     pub fn area(&self) -> T {
         self.x.clone() * &self.y
