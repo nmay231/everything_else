@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use advent_2024_rust::{CoinChange, UsizePoint};
+use advent_2024_rust::{CoinChange, Point};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -8,7 +8,7 @@ use regex::Regex;
 
 type Output = usize;
 
-fn parse_group(button_a: &str, button_b: &str, prize: &str) -> Result<[UsizePoint; 3]> {
+fn parse_group(button_a: &str, button_b: &str, prize: &str) -> Result<[Point<usize>; 3]> {
     lazy_static! {
         static ref RE_BUTTON: Regex = Regex::from_str(r#"Button (A|B): X\+(\d+), Y\+(\d+)"#)
             .expect("the regex should compile");
@@ -22,7 +22,7 @@ fn parse_group(button_a: &str, button_b: &str, prize: &str) -> Result<[UsizePoin
         .extract()
         .1;
     assert_eq!(name, "A");
-    let a = UsizePoint(
+    let a = Point::<usize>::new_xy(
         x.parse().context("Couldn't parse button A's x value")?,
         y.parse().context("Couldn't parse button A's y value")?,
     );
@@ -33,7 +33,7 @@ fn parse_group(button_a: &str, button_b: &str, prize: &str) -> Result<[UsizePoin
         .extract()
         .1;
     assert_eq!(name, "B");
-    let b = UsizePoint(
+    let b = Point::<usize>::new_xy(
         x.parse().context("Couldn't parse button B's x value")?,
         y.parse().context("Couldn't parse button B's y value")?,
     );
@@ -43,7 +43,7 @@ fn parse_group(button_a: &str, button_b: &str, prize: &str) -> Result<[UsizePoin
         .with_context(|| format!("Couldn't parse prize info in `{}`", prize))?
         .extract()
         .1;
-    let prize = UsizePoint(
+    let prize = Point::<usize>::new_xy(
         x.parse().context("Couldn't parse the prize x value")?,
         y.parse().context("Couldn't parse the prize y value")?,
     );
@@ -76,7 +76,7 @@ fn part1(text: &str) -> Output {
         // situation where B over A is always good so that I can add assertions
         // for that. Whatever...
         let [mut iter_xs, mut iter_ys] =
-            [(a.0, b.0, prize.0), (a.1, b.1, prize.1)].map(|(a, b, prize)| {
+            [(a.x, b.x, prize.x), (a.y, b.y, prize.y)].map(|(a, b, prize)| {
                 CoinChange::new(&[b, a], prize).map(|ba| {
                     if let [b, a] = ba[0..2] {
                         return (b, a);

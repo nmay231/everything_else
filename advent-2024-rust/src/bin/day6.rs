@@ -1,4 +1,4 @@
-use advent_2024_rust::{Direc, UsizePoint};
+use advent_2024_rust::{Direc, Point};
 use itertools::Itertools;
 
 type Output = usize;
@@ -8,7 +8,7 @@ const EMPTY: char = '.';
 const GUARD: char = '^';
 
 fn part1(text: &str) -> Output {
-    let grid_size = &UsizePoint(text.lines().count(), text.find('\n').unwrap());
+    let grid_size = &Point::<usize>::new_xy(text.find('\n').unwrap(), text.lines().count());
     let mut grid = text.chars().filter(|c| c != &'\n').collect::<Vec<_>>();
     let guard = grid
         .iter()
@@ -17,7 +17,7 @@ fn part1(text: &str) -> Output {
         .0;
     grid[guard] = VISITED;
 
-    let mut guard = UsizePoint::from_index(grid_size, guard);
+    let mut guard = Point::<usize>::from_index(grid_size, guard);
     let mut direc = Direc::North;
 
     while let Some(ahead) = guard.next_point(&direc, grid_size) {
@@ -62,7 +62,7 @@ fn part1(text: &str) -> Output {
 /// compress the grid into a set of columns and rows with the obstacles as
 /// positions in order. That way you can avoid traversing every cell and move in
 /// leaps and bounds.
-fn part2(text: &str) -> Output {
+fn part2(_text: &str) -> Output {
     0
 }
 
