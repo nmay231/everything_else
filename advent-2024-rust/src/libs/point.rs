@@ -34,7 +34,7 @@ impl<T: MyNumber> Point<T> {
     }
 
     pub fn next_point_steps(&self, steps: &T, direc: &Direc, grid_size: &Self) -> Option<Self> {
-        assert!(steps > &T::zero());
+        assert!(steps >= &T::zero());
 
         match direc {
             Direc::North => {
