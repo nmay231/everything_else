@@ -1,44 +1,66 @@
-/// (row, column)
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct UsizePoint(pub usize, pub usize);
+use std::ops::{Add, Div, Mul, Sub};
 
-impl UsizePoint {
+use num_traits::{Num, NumRef};
+
+use crate::Direc;
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub struct Point<T> {
+    pub x: T,
+    pub y: T,
+}
+
+pub trait MyNumber: NumRef + Num + Ord + Clone {}
+impl<T: NumRef + Num + Ord + Clone> MyNumber for T {}
+
+// TODO: Support non-Copy types by using operations on &T
+impl<T: MyNumber> Point<T> {
     #[inline(always)]
-    pub fn next_point(&self, direc: &Direc, grid_size: &UsizePoint) -> Option<UsizePoint> {
-        self.next_point_steps(1, direc, grid_size)
+    pub fn new_xy(x: T, y: T) -> Self {
+        Self { x, y }
     }
 
-    pub fn next_point_steps(
-        &self,
-        steps: usize,
-        direc: &Direc,
-        grid_size: &UsizePoint,
-    ) -> Option<UsizePoint> {
+    #[inline(always)]
+    pub fn within_grid(&self, grid_size: &Point<T>) -> bool {
+        self.x >= T::zero()
+            && self.y >= T::zero()
+            && (self.x) < grid_size.x
+            && (self.y) < grid_size.y
+    }
+
+    #[inline(always)]
+    pub fn next_point(&self, direc: &Direc, grid_size: &Self) -> Option<Self> {
+        self.next_point_steps(&T::one(), direc, grid_size)
+    }
+
+    pub fn next_point_steps(&self, steps: &T, direc: &Direc, grid_size: &Self) -> Option<Self> {
+        assert!(steps > &T::zero());
+
         match direc {
             Direc::North => {
-                if self.0 >= steps {
-                    Some(UsizePoint(self.0 - steps, self.1))
+                if &self.y >= steps {
+                    Some(Self::new_xy(self.x.clone(), self.y.clone() - steps))
                 } else {
                     None
                 }
             }
             Direc::East => {
-                if self.1 + steps < grid_size.1 {
-                    Some(UsizePoint(self.0, self.1 + steps))
+                if self.x.clone() + steps < grid_size.x {
+                    Some(Self::new_xy(self.x.clone() + steps, self.y.clone()))
                 } else {
                     None
                 }
             }
             Direc::South => {
-                if self.0 + steps < grid_size.0 {
-                    Some(UsizePoint(self.0 + steps, self.1))
+                if self.y.clone() + steps < grid_size.y {
+                    Some(Self::new_xy(self.x.clone(), self.y.clone() + steps))
                 } else {
                     None
                 }
             }
             Direc::West => {
-                if self.1 >= steps {
-                    Some(UsizePoint(self.0, self.1 - steps))
+                if &self.x >= steps {
+                    Some(Self::new_xy(self.x.clone() - steps, self.y.clone()))
                 } else {
                     None
                 }
@@ -47,199 +69,100 @@ impl UsizePoint {
     }
 
     // TODO: Don't think I really need `next_point_steps_wrap()`
-    pub fn next_point_wrap(&self, direc: &Direc, grid_size: &UsizePoint) -> UsizePoint {
+    pub fn next_point_wrap(&self, direc: &Direc, grid_size: &Self) -> Self {
         match direc {
             Direc::North => {
-                if self.0 > 0 {
-                    UsizePoint(self.0 - 1, self.1)
+                if self.y > T::zero() {
+                    Self::new_xy(self.x.clone(), self.y.clone() - T::one())
                 } else {
-                    UsizePoint(grid_size.0 - 1, self.1)
+                    Self::new_xy(self.x.clone(), grid_size.y.clone() - T::one())
                 }
             }
             Direc::East => {
-                if self.1 + 1 < grid_size.1 {
-                    UsizePoint(self.0, self.1 + 1)
+                if self.x.clone() + T::one() < grid_size.x {
+                    Self::new_xy(self.x.clone() + T::one(), self.y.clone())
                 } else {
-                    UsizePoint(self.0, 0)
+                    Self::new_xy(T::zero(), self.y.clone())
                 }
             }
             Direc::South => {
-                if self.0 + 1 < grid_size.0 {
-                    UsizePoint(self.0 + 1, self.1)
+                if self.y.clone() + T::one() < grid_size.y {
+                    Self::new_xy(self.x.clone(), self.y.clone() + T::one())
                 } else {
-                    UsizePoint(0, self.1)
+                    Self::new_xy(self.x.clone(), T::zero())
                 }
             }
             Direc::West => {
-                if self.1 > 0 {
-                    UsizePoint(self.0, self.1 - 1)
+                if self.x > T::zero() {
+                    Self::new_xy(self.x.clone() - T::one(), self.y.clone())
                 } else {
-                    UsizePoint(self.0, grid_size.1 - 1)
+                    Self::new_xy(grid_size.x.clone() - T::one(), self.y.clone())
                 }
             }
         }
     }
 
     #[inline(always)]
-    pub fn is_on_edge(&self, grid_size: &UsizePoint) -> bool {
-        self.0 == 0 || self.1 == 0 || self.0 + 1 == grid_size.0 || self.1 + 1 == grid_size.1
+    pub fn is_on_edge(&self, grid_size: &Self) -> bool {
+        self.x == T::zero()
+            || self.y == T::zero()
+            || self.x.clone() + T::one() == grid_size.x
+            || self.y.clone() + T::one() == grid_size.y
     }
 
     #[inline(always)]
-    pub fn as_index(&self, grid_size: &UsizePoint) -> usize {
-        grid_size.1 * self.0 + self.1
+    pub fn as_index(&self, grid_size: &Self) -> T {
+        grid_size.x.clone() * &self.y + &self.x
     }
 
     #[inline(always)]
-    pub fn from_index(grid_size: &UsizePoint, index: usize) -> Self {
-        Self(index / grid_size.1, index % grid_size.1)
+    pub fn from_index(grid_size: &Self, index: T) -> Self {
+        Self::new_xy(index.clone() % &grid_size.x, index / &grid_size.x)
+    }
+
+    // pub fn debug_grid<Cell: Display>(&self, grid: &[Cell]) {
+    //     assert_eq!(self.area(), grid.len());
+    //     for row_i in T::zero()..self.y {
+    //         println!(
+    //             "{}",
+    //             String::from_iter(&grid[row_i * self.y..(row_i + 1) * self.x])
+    //         );
+    //     }
+    // }
+
+    #[inline(always)]
+    pub fn manhattan_distance(&self, other: &Self) -> T {
+        let mut xs = [&self.x, &other.x];
+        let mut ys = [&self.y, &other.y];
+        xs.sort();
+        ys.sort();
+        xs[1].clone() - xs[0] + &(ys[1].clone() - ys[0])
     }
 
     #[inline(always)]
-    pub fn debug_grid(&self, grid: &[char]) {
-        assert_eq!(self.0 * self.1, grid.len());
-        for row_i in 0..self.0 {
-            println!(
-                "{}",
-                String::from_iter(&grid[row_i * self.1..(row_i + 1) * self.1])
-            );
+    pub fn area(&self) -> T {
+        self.x.clone() * &self.y
+    }
+
+    #[inline(always)]
+    pub fn dot_product(&self, other: &Self) -> T {
+        self.x.clone() * &other.x + &(self.y.clone() * &other.y)
+    }
+}
+
+macro_rules! operator {
+    ($trait:ty, $operation:ident) => {
+        impl<T: MyNumber> $trait for Point<T> {
+            type Output = Self;
+
+            fn $operation(self, rhs: Self) -> Self::Output {
+                Self::new_xy(self.x.$operation(&rhs.x), self.y.$operation(&rhs.y))
+            }
         }
-    }
-
-    #[inline(always)]
-    pub fn manhattan_distance(&self, other: &UsizePoint) -> usize {
-        self.0.abs_diff(other.0) + self.1.abs_diff(other.1)
-    }
-
-    #[inline(always)]
-    pub fn within_grid(&self, grid_size: &UsizePoint) -> bool {
-        self.0 < grid_size.0 && self.1 < grid_size.1
-    }
-
-    #[inline(always)]
-    pub fn isize(&self) -> IsizePoint {
-        IsizePoint(self.0 as isize, self.1 as isize)
-    }
-
-    #[inline(always)]
-    pub fn add(&self, other: &Self) -> Self {
-        Self(self.0 + other.0, self.1 + other.1)
-    }
-
-    #[inline(always)]
-    pub fn sub(&self, other: &Self) -> IsizePoint {
-        self.isize().sub(&other.isize())
-    }
-
-    #[inline(always)]
-    pub fn neg(&self) -> IsizePoint {
-        self.isize().neg()
-    }
-
-    #[inline(always)]
-    pub fn mul(&self, scalar: usize) -> Self {
-        Self(self.0 * scalar, self.1 * scalar)
-    }
-
-    #[inline(always)]
-    pub fn piecewise_mul(&self, other: &UsizePoint) -> Self {
-        Self(self.0 * other.0, self.1 * other.1)
-    }
-
-    #[inline(always)]
-    pub fn area(&self) -> usize {
-        self.0 * self.1
-    }
+    };
 }
 
-// TODO: Implement as a generic and type aliases for usize and isize, and
-// implement the Add, etc. traits
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct IsizePoint(pub isize, pub isize);
-
-impl IsizePoint {
-    #[inline(always)]
-    pub fn within_grid(&self, grid_size: &UsizePoint) -> bool {
-        self.0 >= 0
-            && self.1 >= 0
-            && (self.0 as usize) < grid_size.0
-            && (self.1 as usize) < grid_size.1
-    }
-
-    #[inline(always)]
-    pub fn usize(&self) -> UsizePoint {
-        UsizePoint(self.0 as usize, self.1 as usize)
-    }
-
-    pub fn try_usize(&self) -> Option<UsizePoint> {
-        Some(UsizePoint(self.0.try_into().ok()?, self.1.try_into().ok()?))
-    }
-
-    #[inline(always)]
-    pub fn add(&self, other: &Self) -> Self {
-        Self(self.0 + other.0, self.1 + other.1)
-    }
-
-    #[inline(always)]
-    pub fn sub(&self, other: &Self) -> Self {
-        Self(self.0 - other.0, self.1 - other.1)
-    }
-
-    #[inline(always)]
-    pub fn neg(&self) -> Self {
-        Self(-self.0, -self.1)
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub enum Direc {
-    North,
-    East,
-    South,
-    West,
-}
-
-impl Direc {
-    pub const POWERS_OF_I: [Direc; 4] = [Direc::East, Direc::North, Direc::West, Direc::South];
-    /// Following the rotation of polar coordinates
-    pub const EIGHT_WAYS: [&[Direc]; 8] = [
-        &[Direc::East],
-        &[Direc::East, Direc::North],
-        &[Direc::North],
-        &[Direc::West, Direc::North],
-        &[Direc::West],
-        &[Direc::West, Direc::South],
-        &[Direc::South],
-        &[Direc::East, Direc::South],
-    ];
-
-    pub fn rotate(&self, rotation_counter_clockwise: i32) -> Self {
-        let current_index = Direc::POWERS_OF_I
-            .iter()
-            .enumerate()
-            .find_map(|(i, x)| if x == self { Some(i as i32) } else { None })
-            .unwrap();
-        return Direc::POWERS_OF_I
-            [(rotation_counter_clockwise + current_index).rem_euclid(4) as usize];
-    }
-
-    #[inline]
-    pub fn cmp_points(&self, a: &UsizePoint, b: &UsizePoint) -> std::cmp::Ordering {
-        match self {
-            Direc::South => a.0.cmp(&b.0),
-            Direc::North => b.0.cmp(&a.0),
-            Direc::East => a.1.cmp(&b.1),
-            Direc::West => b.1.cmp(&a.1),
-        }
-    }
-
-    #[inline]
-    pub fn to_power_of_i(&self) -> usize {
-        match self {
-            Direc::East => 0,
-            Direc::North => 1,
-            Direc::West => 2,
-            Direc::South => 3,
-        }
-    }
-}
+operator!(Add, add);
+operator!(Sub, sub);
+operator!(Mul, mul);
+operator!(Div, div);
