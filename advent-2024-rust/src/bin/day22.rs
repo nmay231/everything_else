@@ -1,3 +1,6 @@
+#![feature(iter_map_windows)]
+use std::collections::HashMap;
+
 type Output = usize;
 
 fn forward_one(mut input: usize) -> usize {
@@ -32,8 +35,49 @@ fn part1(text: &str) -> Output {
     total
 }
 
-fn part2(_text: &str) -> Output {
-    0
+struct MonkeyBuyer {
+    secret_number: usize,
+}
+
+impl MonkeyBuyer {
+    fn new(secret_number: usize) -> Self {
+        Self { secret_number }
+    }
+}
+
+impl Iterator for MonkeyBuyer {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.secret_number = forward_one(self.secret_number);
+        Some(self.secret_number)
+    }
+}
+
+fn part2(text: &str) -> Output {
+    let mut global_sequence_increases = HashMap::new();
+    for line in text.lines() {
+        let n = line.parse::<usize>().unwrap();
+
+        let sequence = [n]
+            .into_iter()
+            .chain(MonkeyBuyer::new(n))
+            .take(2001)
+            .map(|x| x % 10)
+            .map_windows(|[a, b]| (*b as isize - *a as isize, *b))
+            .map_windows(|[a, b, c, d]| ((a.0, b.0, c.0, d.0), d.1));
+
+        let mut first_sell = HashMap::new();
+        for (diffs, selling_price) in sequence {
+            first_sell.entry(diffs).or_insert(selling_price);
+        }
+
+        for (diffs, selling_price) in first_sell.into_iter() {
+            *global_sequence_increases.entry(diffs).or_default() += selling_price;
+        }
+    }
+
+    global_sequence_increases.into_values().max().unwrap()
 }
 
 fn main() -> std::io::Result<()> {
@@ -56,6 +100,13 @@ mod tests {
         2024
     "};
 
+    const TEXT2: &str = indoc! {"
+        1
+        2
+        3
+        2024
+    "};
+
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1), 37327623);
@@ -75,5 +126,10 @@ mod tests {
             5908254,
         ];
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT2), 23);
     }
 }
