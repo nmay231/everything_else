@@ -1,10 +1,8 @@
-type Output = usize;
-
-fn part1(text: &str) -> Output {
+fn part1(text: &str) -> usize {
     0
 }
 
-fn part2(_text: &str) -> Output {
+fn part2(_text: &str) -> usize {
     0
 }
 
