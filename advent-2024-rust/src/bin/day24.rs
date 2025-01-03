@@ -1,9 +1,10 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use itertools::Itertools;
 
 type Output = usize;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Operator {
     And,
     Or,
@@ -21,8 +22,8 @@ fn part1(text: &str) -> Output {
         (2.., _) => unreachable!("There are only two stages in the input file"),
         (0, "") => stage += 1,
         (0, line) => {
-            let (gate, bit) = line.split_once(": ").unwrap();
-            wire_values.insert(gate, bit == "1");
+            let (wire, bit) = line.split_once(": ").unwrap();
+            wire_values.insert(wire, bit == "1");
         }
         (1, line) => {
             let (a, op, b, _arrow, c) = line.split(' ').collect_tuple().unwrap();
@@ -65,7 +66,90 @@ fn part1(text: &str) -> Output {
     return result;
 }
 
-fn part2(_text: &str) -> Output {
+fn part2(text: &str) -> Output {
+    let mut stage = 0_usize;
+    let mut wire_values = HashMap::new();
+    let mut gates = VecDeque::new();
+    let mut inverse_gates = HashMap::new();
+    let mut forward_gates = HashMap::new();
+
+    let mut all_wires = HashMap::new();
+
+    // Note: I am only using for_each because I realized that it de-nests the
+    // match statement by a level compared to a regular for-loop. This is not
+    // true if iterator is built with a large chain of methods (like I
+    // artificially do here). But assigning to a temporary variable resolves
+    // that issue.
+    let lines = text
+        .lines()
+        .into_iter()
+        .into_iter()
+        .into_iter()
+        .into_iter()
+        .into_iter()
+        .into_iter();
+
+    lines.for_each(|line| match (stage, line) {
+        (2.., _) => unreachable!("There are only two stages in the input file"),
+        (0, "") => stage += 1,
+        (0, line) => {
+            let (wire, bit) = line.split_once(": ").unwrap();
+            wire_values.insert(wire, bit == "1");
+        }
+        (1, line) => {
+            let (a, op, b, _arrow, c) = line.split(' ').collect_tuple().unwrap();
+            let op = match op {
+                "AND" => Operator::And,
+                "OR" => Operator::Or,
+                "XOR" => Operator::Xor,
+                _ => unreachable!("Unknown operator: {:?}", op),
+            };
+            gates.push_back((a, b, op, c));
+            inverse_gates.insert(c, (a, op, b));
+            forward_gates.insert((a, op, b), c);
+
+            [a, b, c].map(|wire| all_wires.insert(wire, ()));
+        }
+    });
+
+    let [xs, ys, zs] = ['x', 'y', 'z'].map(|start| {
+        let mut wires = all_wires
+            .keys()
+            .filter(|wire| wire.starts_with(start))
+            .map(|x| &x[1..])
+            .collect_vec();
+        wires.sort();
+        wires
+    });
+
+    let indexes = (0..45).map(|index| format!("{:0>2}", index)).collect_vec();
+    assert_eq!(xs, indexes);
+    assert_eq!(ys, indexes);
+    assert_eq!(zs, [indexes, vec!["45".into()]].concat());
+    // indexes.push("45".into());
+
+    println!("asdf: {:?}", (xs.len(), ys.len(), zs.len()));
+
+    // z00 = x00 ^ y00
+    // z01 = x01 ^ y01 ^ (x00 & y00)
+    // z02 = x02 ^ y02 ^ ((x01 & y01) | (x01 & (x00 & y00)) | (y01 & (x00 & y00)))
+
+    // let mut stabilized = HashSet::new();
+    for index in 0..=45 {
+        // let x_index = format!("x{:0>2}", index);
+        // let y_index = format!("y{:0>2}", index);
+        // let z_index = format!("z{:0>2}", index);
+        let [x_index, y_index, z_index] = ['x', 'y', 'z'].map(|c| format!("{}{:0>2}", c, index));
+
+        let (a, op, b) = inverse_gates.get(&z_index[..]).unwrap();
+        assert_eq!(
+            op,
+            &Operator::Xor,
+            "{:?}",
+            (&z_index, a, b, inverse_gates.get(a), inverse_gates.get(b))
+        );
+    }
+
     0
 }
 
