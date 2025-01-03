@@ -8,13 +8,26 @@ copy pasted characters from Wikipedia and put them into the "right" order often
 enough that this should be helpful. That said, the wiki article is still a
 helpful resource: https://en.wikipedia.org/wiki/Box-drawing_characters.
 
-## Rounded corners (aka light arc)
+## To/from unicode codes in programming languages
+```rust
+// Rust
+println!("\u{2764}: {}", '❤'.escape_unicode()); // "❤: \u{2764}"
+```
+
+```python
+# Python
+print("\u2764:", "\\u{:X}".format(ord("❤")))  # "❤: \u2764"
+```
+
+## Misc unicode patterns
+
+### Rounded corners (aka light arc)
 ```
 ╭╮
 ╰╯
 ```
 
-## Thin boxes (aka light)
+### Thin boxes (aka light)
 ```
 ─│┌┐└┘├┤┬┴┼╴╵╶╷   # Code point order
 ╵╶└╷│┌├╴┘─┴┐┤┬┼   # Binary counter order
@@ -25,7 +38,7 @@ helpful resource: https://en.wikipedia.org/wiki/Box-drawing_characters.
 └─┘ └┴┘
 ```
 
-## Thick boxes (aka heavy)
+### Thick boxes (aka heavy)
 ```
 ━┃┏┓┗┛┣┫┳┻╋╸╹╺╻   # Code point order
 ╹╺┗╻┃┏┣╸┛━┻┓┫┳╋   # Binary counter order
@@ -35,7 +48,7 @@ helpful resource: https://en.wikipedia.org/wiki/Box-drawing_characters.
 ┗━┛ ┗┻┛
 ```
 
-## Double boxes
+### Double boxes
 ```
 ═║╔╗╚╝╠╣╦╩╬       # Code point order (no stubs for this group)
 
@@ -45,14 +58,14 @@ helpful resource: https://en.wikipedia.org/wiki/Box-drawing_characters.
 ╚═╝ ╚╩╝
 ```
 
-## Double, Triple, and Quadruple dashed lines
+### Double, Triple, and Quadruple dashed lines
 ```
 ╌╍╎╏
 ┄┅┆┇
 ┈┉┊┋
 ```
 
-## Mixed thicknesses
+### Mixed thicknesses
 ```
 ╒╓╕╖
 ╘╙╛╜
@@ -90,7 +103,7 @@ helpful resource: https://en.wikipedia.org/wiki/Box-drawing_characters.
 ╈╉╊╋
 ```
 
-## X's
+### X's
 ```
 ╲ ╱
  ╳
