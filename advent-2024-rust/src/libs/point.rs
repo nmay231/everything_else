@@ -16,7 +16,7 @@ impl<T: NumRef + Num + Ord + Clone> MyNumber for T {}
 // TODO: Support non-Copy types by using operations on &T
 impl<T: MyNumber> Point<T> {
     #[inline(always)]
-    pub fn new_xy(x: T, y: T) -> Self {
+    pub const fn new_xy(x: T, y: T) -> Self {
         Self { x, y }
     }
 
@@ -148,6 +148,32 @@ impl<T: MyNumber> Point<T> {
     #[inline(always)]
     pub fn dot_product(&self, other: &Self) -> T {
         self.x.clone() * &other.x + &(self.y.clone() * &other.y)
+    }
+
+    #[inline(always)]
+    pub fn map<U: MyNumber>(&self, mapper: impl Fn(&T) -> U) -> Point<U> {
+        Point {
+            x: mapper(&self.x),
+            y: mapper(&self.y),
+        }
+    }
+}
+
+impl<T: MyNumber + TryInto<usize>> Point<T> {
+    pub fn try_map_usize(&self) -> Option<Point<usize>> {
+        Some(Point::new_xy(
+            self.x.clone().try_into().ok()?,
+            self.y.clone().try_into().ok()?,
+        ))
+    }
+}
+
+impl<T: MyNumber + TryInto<isize>> Point<T> {
+    pub fn try_map_isize(&self) -> Option<Point<isize>> {
+        Some(Point::new_xy(
+            self.x.clone().try_into().ok()?,
+            self.y.clone().try_into().ok()?,
+        ))
     }
 }
 

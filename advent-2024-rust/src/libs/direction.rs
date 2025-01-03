@@ -66,4 +66,29 @@ impl Direc {
             Direc::West => b.1.cmp(&a.1),
         }
     }
+
+    #[inline]
+    pub fn to_ascii(&self) -> char {
+        match self {
+            Direc::North => '^',
+            Direc::East => '>',
+            Direc::South => 'v',
+            Direc::West => '<',
+        }
+    }
+
+    #[inline]
+    pub fn from_ascii(c: char) -> Self {
+        match c {
+            '^' => Direc::North,
+            '>' => Direc::East,
+            'v' => Direc::South,
+            '<' => Direc::West,
+            _ => panic!(
+                "Unexpected character '{}' to convert to {}",
+                c,
+                std::any::type_name::<Self>(),
+            ),
+        }
+    }
 }
