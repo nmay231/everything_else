@@ -3,10 +3,6 @@
 TILE_COUNT = 0
 
 
-def stock_to(item, count):
-    trade(item, max(0, count - num_items(item)))
-
-
 def to_pos(x, y):
     size = get_world_size()
     if get_pos_x() != x:
@@ -42,8 +38,3 @@ def clear_grid(ground=None, entity=None):
             plant(entity)
 
     for_each(clear_tile)
-
-
-def restock_empty_tanks():
-    if num_items(Items.Water_Tank) < TILE_COUNT:
-        stock_to(Items.Empty_Tank, 2 * TILE_COUNT)
