@@ -5,12 +5,11 @@
 
 from typing import Any, Iterable, Optional
 
-from Utilies import TILE_COUNT, clear_grid, for_each, to_pos
+from Utilies import clear_grid, for_each, to_pos
 
 __all__ = [
     "clear_grid",
     "for_each",
-    "TILE_COUNT",
     "to_pos",
 ]
 

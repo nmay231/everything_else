@@ -9,10 +9,6 @@ for _ in range(15 + 1):
 
 
 while True:
-    stock_to(Items.Sunflower_Seed, TILE_COUNT)
-    stock_to(Items.Fertilizer, 3 * TILE_COUNT)
-    restock_empty_tanks()
-
     for _ in range(TILE_COUNT):
         plant(Entities.Sunflower)
         by_petal_count[measure()].append((get_pos_x(), get_pos_y()))
@@ -20,23 +16,18 @@ while True:
         move(North)
         if get_pos_y() == 0:
             move(East)
-    beginning = False
 
+    petals = 15
     for _ in range(TILE_COUNT):
-        for x in range(9):
-            petals = 15 - x
-            if len(by_petal_count[petals]) > 0:
-                break
+        while len(by_petal_count[petals]) == 0:
+            petals -= 1
         x, y = by_petal_count[petals].pop(0)
         to_pos(x, y)
-        if not can_harvest():
-            while not can_harvest():
-                use_item(Items.Fertilizer)
 
-        # It would waste less water if we did this while planting, but it is
-        # better here so we can waste time while waiting to grow the next
-        # plants.
-        while get_water() < 0.50 and num_items(Items.Water_Tank) > 0:
-            use_item(Items.Water_Tank)
+        if get_water() < 0.13:
+            use_item(Items.Water)
+
+        while not can_harvest():
+            use_item(Items.Fertilizer)
 
         harvest()

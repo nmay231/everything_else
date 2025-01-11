@@ -1,6 +1,3 @@
-TILE_COUNT = get_world_size() ** 2
-
-stock_to(Items.Cactus_Seed, TILE_COUNT)
 clear_grid(Grounds.Soil, Entities.Cactus)
 
 
@@ -35,5 +32,4 @@ while True:
         bubble_sort(East, West, get_pos_x)
         move(North)
     harvest()
-    stock_to(Items.Cactus_Seed, TILE_COUNT)
     for_each(init_tile)

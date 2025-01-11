@@ -31,3 +31,6 @@ lint.ignore = [
     "F821", # undefined name--Ruff doesn't currently support __builtins__.py
     "E711", # comparison to None--The game only supports `== None`
 ]
+
+[tool.mypy]
+disable_error_code = "name-defined"

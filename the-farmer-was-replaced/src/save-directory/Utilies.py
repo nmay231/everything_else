@@ -1,8 +1,3 @@
-# These utility functions actually use global variables from the main file's
-# scope, but I also define it here to get type checking happy
-TILE_COUNT = 0
-
-
 def to_pos(x, y):
     size = get_world_size()
     if get_pos_x() != x:

@@ -1,15 +1,12 @@
-TILE_COUNT = get_world_size() ** 2
-
-
 def init():
     clear()
     for _ in range(4):
         move(East)
         move(North)
+
     plant(Entities.Bush)
-    while get_entity_type() == Entities.Bush:
-        trade(Items.Fertilizer)
-        use_item(Items.Fertilizer)
+    n_substance = get_world_size() * num_unlocked(Unlocks.Mazes)
+    use_item(Items.Weird_Substance, n_substance)
 
 
 def opposite_direc(input):
@@ -41,6 +38,7 @@ def turn_right(input):
 if get_entity_type() != Entities.Hedge:
     init()
 
+# TODO: Reuse mazes that have a low circumference (aka, max-eccentricity)
 while True:
     direc = North
     while get_entity_type() != Entities.Treasure:
