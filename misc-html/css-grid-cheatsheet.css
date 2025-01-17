@@ -1,0 +1,129 @@
+/* Mostly sourced from: https://css-tricks.com/snippets/css/complete-guide-grid
+and many, many misc MDN Web Docs. Currently, I am writing this because I needed
+it not too long ago. However, I do not feel like testing everything right now,
+so there might be typos or other bugs. */
+
+.centered {
+    /* TODO: Probably should go in a general css cheatsheet, but whatev's */
+    display: grid;
+    place-items: center;
+}
+
+/*
+ * Notes:
+ * - I often use [normal-name]--[description] in different names, e.g. the
+ *   classname `.container--misc` refers to miscellaneous properties for the
+ *   container grid.
+ * - Tracks vs lines. Tracks are rows or columns in a grid. Lines are the lines
+ *   or gaps between tracks.
+ * - There are two ways to describe how and where items fit into the grid,
+ *   though they are not mutually exclusive. They are grid-template-areas vs
+ *   grid-template-columns/-rows.
+ *   - Basically, grid-template-areas is where you literally type a grid of cell
+ *     names and then assigning each child element to one of those cell names.
+ *     You can repeat cell names to have an element span multiple tracks.
+ *   - The latter is much more useful imo. You define the number of rows or
+ *     columns (or how columns are generated per row in some cases) and then
+ *     define the placement of children using the lines as coordinates. I guess
+ *     the former can be more helpful for visual learners.
+ * - Because of the above point, there are 6 classes below, for the categories
+ *   {container, item} cross product {misc, grid-template-x, grid-area}.
+ */
+
+/* ========MISC======== */
+.container--misc {
+    display: grid; /* or inline-grid */
+
+    /* <'align-items'> <'justify-items'>? */
+    place-items: --;
+    /* start | end | center | stretch */
+    justify-items: --; /* Inline axis (think about justify in the context of text documents) */
+    align-items: --; /* Block axis */
+
+    /* <'row-gap'> <'column-gap'>? */
+    gap: --;
+    /* normal | <length-percentage> */
+    row-gap: --;
+    column-gap: --;
+
+    /* Let's items fit into rows (or columns) without caring about aligning
+    vertical lines (think of bricks put into a wall with alternating gaps). */
+    grid-auto-flow: column;
+
+    /* Let the size of the item's content determine the number of columns while
+    aligning vertical lines like in a normal grid (as opposed to the above
+    option). */
+    /* Note: To my understanding, auto-fill vs auto-fit is only relevant when
+             the content can fit in one row and that row is shorter than the
+             viewport width. `auto-fill` adds extra empty columns when needed
+             while `auto-fit` fits/resizes the existing columns into the width
+             of the viewport. For more:
+             https://css-tricks.com/auto-sizing-columns-css-grid-auto-fill-vs-auto-fit/
+             */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+
+    /* [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]? */
+    /* If you want to use both grid-area and grid-column/-row, I guess... */
+    grid-template: --;
+}
+
+.item--misc {
+    /* <'align-self'> <'justify-self'>? */
+    place-self: --;
+    /* start | end | center | stretch */
+    justify-self: --; /* Inline axis (think about justify in the context of text documents) */
+    align-self: --; /* Block axis */
+}
+
+/* ========GRID_TEMPLATE======== */
+.container--using-grid-template-x {
+    /* <'grid-template-rows'> / <'grid-template-columns'> */
+    grid-template: --;
+
+    /* none | <track-list> | <auto-track-list> | subgrid <line-name-list>? */
+    grid-template-rows: --;
+    grid-template-columns: --;
+
+    --auto-track-list--example: 1fr repeat(3, 100px) minmax(10px, 1fr) auto min-content max-content;
+    --track-list--example: [row1-start] 25% [row1-end] 100px [third-line] auto [last-line] repeat(3, 20px [col-start]);
+    /* repeat() with track names means you need to use track name and number,
+    e.g. `grid-column-start: col-start 3` for the third `col-start` */
+
+    --line-name-list--example: --todo;
+}
+
+.item--using-grid-template-x {
+    /* <'grid-row-start'> / <'grid-column-start'> / <'grid-row-end'> / <'grid-column-end'> */
+    /* WARNING: Read the order of the properties carefully */
+    grid-area: 1 / 1 / 2 / 2;
+
+    /* <start-line> / <end-line>   |   <start-line> / span <value> */
+    grid-column: --;
+    grid-row: --;
+
+    /* auto | <number> | <line-name> | span <number> | span <line-name> */
+    /* Note: `<number>` means the *line*-number (index starts from 1), while
+             `span <number>` means the item spans that many *tracks* */
+    grid-row-start: --;
+    grid-column-start: --;
+    grid-row-end: --;
+    grid-column-end: --;
+}
+
+
+/* ========GRID_AREA======== */
+.container--using-grid-areas {
+    /* "[ <grid-area-name> | . | none ]+" */
+    --row-string: --;
+    /* none | <row-string>+ */
+    grid-template-areas: /* Example: */
+        "header header header header"
+        "main main . sidebar" /* "." means no name assigned */
+        "footer footer footer footer";
+}
+
+.item--using-grid-areas {
+    /* <string> */
+    grid-area: --;
+}
