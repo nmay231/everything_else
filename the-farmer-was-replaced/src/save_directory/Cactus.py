@@ -1,7 +1,4 @@
-clear_grid(Grounds.Soil, Entities.Cactus)
-
-
-def init_tile():
+def _init_cell_cactus():
     plant(Entities.Cactus)
 
 
@@ -9,22 +6,32 @@ def bubble_sort(forward, backward, get_pos):
     while get_pos() > 0:
         move(backward)
 
-    length = get_world_size() - 1
-    while length > 0:
-        for _ in range(length):
+    left = 0  # Inclusive
+    right = get_world_size() - 1  # Inclusive
+
+    for _iterations in range(get_world_size()):
+        prev_right, right = right, left
+        for index in range(left, prev_right):
             if measure() > measure(forward):
+                right = index
                 swap(forward)
             move(forward)
 
-        for _ in range(length):
+        prev_left, left = left, right
+        for index in range(prev_right, prev_left, -1):
             if measure() < measure(backward):
+                left = index
                 swap(backward)
             move(backward)
-        move(forward)
-        length -= 2
+
+        if left >= right:
+            return
+
+        for _ in range(prev_left, left):
+            move(forward)
 
 
-while True:
+def gen_cactus():
     for _ in range(get_world_size()):
         bubble_sort(North, South, get_pos_y)
         move(East)
@@ -32,4 +39,11 @@ while True:
         bubble_sort(East, West, get_pos_x)
         move(North)
     harvest()
-    for_each(init_tile)
+    for_each(_init_cell_cactus)
+
+
+def infinite_cactus():
+    clear_grid(Grounds.Soil, Entities.Cactus)
+
+    while True:
+        gen_cactus()
