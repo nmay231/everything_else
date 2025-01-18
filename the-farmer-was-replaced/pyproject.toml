@@ -1,36 +1,24 @@
 [project]
-name = "the-farmer-was-replaced"
+name = "the_farmer_was_replaced"
 version = "0.1.0"
 description = "Add your description here"
 authors = [{ name = "Noah May", email = "noahmouse2011@gmail.com" }]
-dependencies = ["ruff>=0.6.5"]
 readme = "README.md"
-requires-python = ">= 3.8"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.rye]
-managed = true
-dev-dependencies = [
-    "ruff>=0.6.5",
-    "mypy>=1.11.2",
-    "pytest>=8.3.3",
-    "hypothesis>=6.112.1",
-]
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/the_farmer_was_replaced"]
+requires-python = ">=3.12"
 
 [tool.ruff]
 lint.ignore = [
     "F821", # undefined name--Ruff doesn't currently support __builtins__.py
-    "E711", # comparison to None--The game only supports `== None`
+    "E711", # comparison to None--The game doesn't support `is None`
 ]
 
 [tool.mypy]
-disable_error_code = "name-defined"
+files = ["farmers", "tests"]
+disable_error_code = "name-defined" # mypy doesn't currently support __builtins__.py either
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.124.1",
+    "mypy>=1.14.1",
+    "ruff>=0.9.2",
+]

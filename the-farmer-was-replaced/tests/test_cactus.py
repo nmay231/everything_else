@@ -37,15 +37,13 @@ def test_bubblesort(row, start_index):
     state = State([], 0)
 
     with (
-        mock.patch("save_directory.Cactus.clear_grid", mock.ANY, create=True),
-        mock.patch(
-            "save_directory.Cactus.get_world_size", state.get_world_size, create=True
-        ),
-        mock.patch("save_directory.Cactus.move", state.move, create=True),
-        mock.patch("save_directory.Cactus.measure", state.measure, create=True),
-        mock.patch("save_directory.Cactus.swap", state.swap, create=True),
+        mock.patch("farmers.Cactus.clear_grid", mock.ANY, create=True),
+        mock.patch("farmers.Cactus.get_world_size", state.get_world_size, create=True),
+        mock.patch("farmers.Cactus.move", state.move, create=True),
+        mock.patch("farmers.Cactus.measure", state.measure, create=True),
+        mock.patch("farmers.Cactus.swap", state.swap, create=True),
     ):
-        from save_directory.Cactus import bubble_sort
+        from farmers.Cactus import bubble_sort
 
         state.row = row[:]
         state.index = start_index % len(row)
