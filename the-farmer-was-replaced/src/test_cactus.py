@@ -1,3 +1,4 @@
+import unittest.mock as mock
 from dataclasses import dataclass
 
 from hypothesis import given
@@ -9,50 +10,23 @@ class State:
     row: list[int]
     index: int
 
+    def get_world_size(self):
+        return len(self.row)
 
-state = State([], 0)
+    def move(self, direction):
+        assert 0 <= self.index + direction < len(self.row)
+        self.index += direction
 
+    def measure(self, direction=0):
+        assert 0 <= self.index + direction < len(self.row)
+        return self.row[self.index + direction]
 
-def get_world_size():
-    return len(state.row)
-
-
-def move(direction):
-    assert 0 <= state.index + direction < len(state.row)
-    state.index += direction
-
-
-def measure(direction=0):
-    assert 0 <= state.index + direction < len(state.row)
-    return state.row[state.index + direction]
-
-
-def swap(direction):
-    assert 0 <= state.index + direction < len(state.row)
-    state.row[state.index], state.row[state.index + direction] = (
-        state.row[state.index + direction],
-        state.row[state.index],
-    )
-
-
-# Copied from Cactus.py (because otherwise I would need to mock all the global builtins)
-def bubble_sort(forward, backward, get_pos):
-    while get_pos() > 0:
-        move(backward)
-
-    length = get_world_size() - 1
-    while length > 0:
-        for _ in range(length):
-            if measure() > measure(forward):
-                swap(forward)
-            move(forward)
-
-        for _ in range(length):
-            if measure() < measure(backward):
-                swap(backward)
-            move(backward)
-        move(forward)
-        length -= 2
+    def swap(self, direction):
+        assert 0 <= self.index + direction < len(self.row)
+        self.row[self.index], self.row[self.index + direction] = (
+            self.row[self.index + direction],
+            self.row[self.index],
+        )
 
 
 @given(
@@ -60,10 +34,21 @@ def bubble_sort(forward, backward, get_pos):
     start_index=st.integers(min_value=0),
 )
 def test_bubblesort(row, start_index):
-    state.row = row[:]
-    state.index = start_index % len(row)
-    # state.row = [1, 1, 0]
-    # state.index = 0
-    bubble_sort(1, -1, lambda: state.index)
+    state = State([], 0)
+
+    with (
+        mock.patch("save_directory.Cactus.clear_grid", mock.ANY, create=True),
+        mock.patch(
+            "save_directory.Cactus.get_world_size", state.get_world_size, create=True
+        ),
+        mock.patch("save_directory.Cactus.move", state.move, create=True),
+        mock.patch("save_directory.Cactus.measure", state.measure, create=True),
+        mock.patch("save_directory.Cactus.swap", state.swap, create=True),
+    ):
+        from save_directory.Cactus import bubble_sort
+
+        state.row = row[:]
+        state.index = start_index % len(row)
+        bubble_sort(1, -1, lambda: state.index)
 
     assert state.row == sorted(row)
