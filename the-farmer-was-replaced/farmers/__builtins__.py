@@ -785,7 +785,7 @@ def clear() -> None:
 
 
 # -------------------------------------------------------------------------------
-def get_companion() -> tuple[Entity, tuple[int, int]] | None:
+def get_companion() -> tuple[Entity, tuple[int, int]]:
     """
     Get the companion preference of the plant under the drone.
 
@@ -893,8 +893,8 @@ def leaderboard_run(leaderboard: Leaderboard, file_name: str, speedup: float) ->
 # -------------------------------------------------------------------------------
 def simulate(
     filename: str,
-    sim_unlocks: dict[Unlocks, float] | Iterable[Unlocks],
-    sim_items: dict[Items, float],
+    sim_unlocks: dict[Unlocks, float] | Iterable[Unlocks] | type[Unlocks],
+    sim_items: dict[Item, float],
     sim_globals: dict[str, Any],
     seed: float,
     speedup: float,

@@ -1,5 +1,7 @@
 from collections.abc import Callable  # noqa: F401
 
+from farmers.lib.global_context import Context  # noqa: F401
+
 
 def lazy_to_pos(x, y):  # type: (int, int) -> None
     size = get_world_size()
@@ -22,6 +24,14 @@ def lazy_to_pos(x, y):  # type: (int, int) -> None
 def for_each(action):  # type: (Callable[[], Any]) -> None
     for _ in range(get_world_size() ** 2):
         action()
+        move(North)
+        if get_pos_y() == 0:
+            move(East)
+
+
+def for_each_globals(ctx, action):  # type: (Context, Callable[[Context], Any]) -> None
+    for _ in range(get_world_size() ** 2):
+        action(ctx)
         move(North)
         if get_pos_y() == 0:
             move(East)
