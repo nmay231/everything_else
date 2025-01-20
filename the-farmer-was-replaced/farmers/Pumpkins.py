@@ -3,11 +3,11 @@ from farmers.Utilities import clear_grid, for_each, lazy_to_pos
 TILE_COUNT = get_world_size() ** 2
 
 
-def _init_tile_pumpkin():
+def _init_tile_pumpkin():  # type: () -> None
     plant(Entities.Pumpkin)
 
 
-def infinite_pumpkins():
+def infinite_pumpkins():  # type: () -> None
     clear_grid(Grounds.Soil, Entities.Pumpkin)
 
     while True:

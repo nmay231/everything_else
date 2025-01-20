@@ -1,7 +1,7 @@
 from farmers.Utilities import clear_grid, for_each
 
 
-def _handle_tile_carrot():
+def _handle_tile_carrot():  # type: () -> None
     if can_harvest():
         harvest()
         plant(Entities.Carrot)
@@ -9,7 +9,7 @@ def _handle_tile_carrot():
         use_item(Items.Water)
 
 
-def infinite_carrots():
+def infinite_carrots():  # type: () -> None
     clear_grid(Grounds.Soil, Entities.Carrot)
 
     while True:

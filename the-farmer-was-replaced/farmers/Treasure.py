@@ -1,4 +1,4 @@
-def _init_treasure():
+def _init_treasure():  # type: () -> None
     clear()
     for _ in range(4):
         move(East)
@@ -10,7 +10,7 @@ def _init_treasure():
 
 
 # TODO: Put into Utilities?
-def _opposite_direc_treasure(input):
+def _opposite_direc_treasure(input):  # type: (Direction) -> Direction
     if input == North:
         return South
     elif input == East:
@@ -21,7 +21,7 @@ def _opposite_direc_treasure(input):
         return East
 
 
-def _turn_left_treasure(input):
+def _turn_left_treasure(input):  # type: (Direction) -> Direction
     if input == North:
         return West
     elif input == East:
@@ -32,11 +32,11 @@ def _turn_left_treasure(input):
         return South
 
 
-def _turn_right_treasure(input):
+def _turn_right_treasure(input):  # type: (Direction) -> Direction
     return _turn_left_treasure(_opposite_direc_treasure(input))
 
 
-def infinite_treasure():
+def infinite_treasure():  # type: () -> None
     if get_entity_type() != Entities.Hedge:
         _init_treasure()
 

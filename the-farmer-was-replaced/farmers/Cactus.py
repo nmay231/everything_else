@@ -1,13 +1,14 @@
 from collections.abc import Callable  # noqa: F401
 
+from farmers.lib.measure_int import measure
 from farmers.Utilities import clear_grid, for_each
 
 
-def _init_cell_cactus():
+def _init_cell_cactus():  # type: () -> None
     plant(Entities.Cactus)
 
 
-def _bubble_sort_cactus(forward, backward, get_pos):
+def _bubble_sort_cactus(forward, backward, get_pos):  # type: (Direction, Direction, Callable[[], int]) -> None
     while get_pos() > 0:
         move(backward)
 
@@ -36,7 +37,7 @@ def _bubble_sort_cactus(forward, backward, get_pos):
             move(forward)
 
 
-def gen_cactus():
+def gen_cactus():  # type: () -> None
     for _ in range(get_world_size()):
         _bubble_sort_cactus(North, South, get_pos_y)
         move(East)
@@ -47,7 +48,7 @@ def gen_cactus():
     for_each(_init_cell_cactus)
 
 
-def infinite_cactus():
+def infinite_cactus():  # type: () -> None
     clear_grid(Grounds.Soil, Entities.Cactus)
 
     while True:

@@ -1,4 +1,7 @@
-def lazy_to_pos(x, y):
+from collections.abc import Callable  # noqa: F401
+
+
+def lazy_to_pos(x, y):  # type: (int, int) -> None
     size = get_world_size()
     if get_pos_x() != x:
         if (size - get_pos_x() + x) % size < (size - x + get_pos_x()) % size:
@@ -16,7 +19,7 @@ def lazy_to_pos(x, y):
             move(direc)
 
 
-def for_each(action):
+def for_each(action):  # type: (Callable[[], Any]) -> None
     for _ in range(get_world_size() ** 2):
         action()
         move(North)
@@ -24,8 +27,8 @@ def for_each(action):
             move(East)
 
 
-def clear_grid(ground=None, entity=None):
-    def clear_tile():
+def clear_grid(ground=None, entity=None):  # type: (Ground | None, Entity | None) -> None
+    def clear_tile():  # type: () -> None
         harvest()
         if ground != None and get_ground_type() != ground:
             till()

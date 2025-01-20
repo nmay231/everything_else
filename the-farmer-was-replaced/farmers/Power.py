@@ -1,9 +1,10 @@
+from farmers.lib.measure_int import measure
 from farmers.Utilities import clear_grid, lazy_to_pos
 
 TILE_COUNT = get_world_size() ** 2
 
 
-def infinite_power():
+def infinite_power():  # type: () -> None
     clear_grid(Grounds.Soil)
 
     by_petal_count = []  # type: list[list[tuple[int, int]]]
