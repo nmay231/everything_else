@@ -1,4 +1,4 @@
-def to_pos(x, y):
+def lazy_to_pos(x, y):
     size = get_world_size()
     if get_pos_x() != x:
         if (size - get_pos_x() + x) % size < (size - x + get_pos_x()) % size:

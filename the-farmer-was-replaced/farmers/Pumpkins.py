@@ -1,42 +1,45 @@
+from farmers.Utilities import clear_grid, for_each, lazy_to_pos
+
 TILE_COUNT = get_world_size() ** 2
 
-clear_grid(Grounds.Soil, Entities.Pumpkin)
 
-
-def init_tile():
+def _init_tile_pumpkin():
     plant(Entities.Pumpkin)
 
 
-while True:
-    to_check = []
-    for _ in range(TILE_COUNT):
-        if get_entity_type() == None:
-            to_check.append((get_pos_x(), get_pos_y()))
-            plant(Entities.Pumpkin)
-        elif not can_harvest():
-            to_check.append((get_pos_x(), get_pos_y()))
+def infinite_pumpkins():
+    clear_grid(Grounds.Soil, Entities.Pumpkin)
 
-        move(North)
-        if get_pos_y() == 0:
-            move(East)
+    while True:
+        to_check = []
+        for _ in range(TILE_COUNT):
+            if get_entity_type() == None:
+                to_check.append((get_pos_x(), get_pos_y()))
+                plant(Entities.Pumpkin)
+            elif not can_harvest():
+                to_check.append((get_pos_x(), get_pos_y()))
 
-        if get_water() < 0.25:
-            use_item(Items.Water)
+            move(North)
+            if get_pos_y() == 0:
+                move(East)
 
-    while len(to_check) > 0:
-        x, y = to_check.pop(0)
-        to_pos(x, y)
+            if get_water() < 0.25:
+                use_item(Items.Water)
 
-        if can_harvest():
-            continue
+        while len(to_check) > 0:
+            x, y = to_check.pop(0)
+            lazy_to_pos(x, y)
 
-        # TODO: Do I want this much weird substance from fertilized/infected plants?
-        while get_entity_type() != None and not can_harvest():
-            use_item(Items.Fertilizer)
+            if can_harvest():
+                continue
 
-        if get_entity_type() == None:
-            plant(Entities.Pumpkin)
-        to_check.append((x, y))
-    harvest()
+            # TODO: Do I want this much weird substance from fertilized/infected plants?
+            while get_entity_type() != None and not can_harvest():
+                use_item(Items.Fertilizer)
 
-    for_each(init_tile)
+            if get_entity_type() == None:
+                plant(Entities.Pumpkin)
+            to_check.append((x, y))
+        harvest()
+
+        for_each(_init_tile_pumpkin)

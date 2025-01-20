@@ -3,15 +3,8 @@
 # Note that the games language is not Python and these definitions are only an approximation.
 # Contributed by @Noon, @KlingonDragon and @dieckie on the TFWR Discord server.
 
-from typing import Any, Iterable, Optional
-
-from Utilies import clear_grid, for_each, to_pos
-
-__all__ = [
-    "clear_grid",
-    "for_each",
-    "to_pos",
-]
+from collections.abc import Iterable
+from typing import Any
 
 
 # -------------------------------------------------------------------------------
@@ -587,7 +580,7 @@ def get_tick_count() -> float:
 
 
 # -------------------------------------------------------------------------------
-def trade(item: Item, n: Optional[float] = None) -> bool:
+def trade(item: Item, n: None | float = None) -> bool:
     """
     Tries to buy the specified `item`.
      If the `item` cannot be bought or you don't have the required resources it simply does nothing.
@@ -849,8 +842,14 @@ def num_unlocked(thing: Unlock | Entity | Ground | Item) -> int:
 
 
 # -------------------------------------------------------------------------------
-def measure(direction: Optional[Direction] = None) -> float | tuple[int, int] | None:
+def _obsolete_measure(
+    direction: None | Direction = None,
+) -> float | tuple[int, int] | None:
     """
+    NOTE: Having this form is annoying typing-wise since we know we will be
+    working with one type of crop at a time and therefore get only float or
+    tuple[int, int] (and we don't need to measure in situations returning None).
+
     Can measure some values on some entities. The effect of this depends on the entity.
 
     overloads:

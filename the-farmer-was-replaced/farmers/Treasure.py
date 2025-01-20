@@ -1,4 +1,4 @@
-def init():
+def _init_treasure():
     clear()
     for _ in range(4):
         move(East)
@@ -9,41 +9,43 @@ def init():
     use_item(Items.Weird_Substance, n_substance)
 
 
-def opposite_direc(input):
+# TODO: Put into Utilities?
+def _opposite_direc_treasure(input):
     if input == North:
         return South
     elif input == East:
         return West
     elif input == South:
         return North
-    elif input == West:
+    else:
         return East
 
 
-def turn_left(input):
+def _turn_left_treasure(input):
     if input == North:
         return West
     elif input == East:
         return North
     elif input == South:
         return East
-    elif input == West:
+    else:
         return South
 
 
-def turn_right(input):
-    return turn_left(opposite_direc(input))
+def _turn_right_treasure(input):
+    return _turn_left_treasure(_opposite_direc_treasure(input))
 
 
-if get_entity_type() != Entities.Hedge:
-    init()
+def infinite_treasure():
+    if get_entity_type() != Entities.Hedge:
+        _init_treasure()
 
-# TODO: Reuse mazes that have a low circumference (aka, max-eccentricity)
-while True:
-    direc = North
-    while get_entity_type() != Entities.Treasure:
-        while not move(direc):
-            direc = turn_right(direc)
-        direc = turn_left(direc)
-    harvest()
-    init()
+    # TODO: Reuse mazes that have a low circumference (aka, a low maximum eccentricity)
+    while True:
+        direc = North
+        while get_entity_type() != Entities.Treasure:
+            while not move(direc):
+                direc = _turn_right_treasure(direc)
+            direc = _turn_left_treasure(direc)
+        harvest()
+        _init_treasure()

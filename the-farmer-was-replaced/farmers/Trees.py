@@ -1,7 +1,7 @@
-clear_grid(Grounds.Soil, Entities.Bush)
+from farmers.Utilities import clear_grid, for_each
 
 
-def plant_tree_or_bush():
+def _plant_tree_or_bush():
     if can_harvest():
         harvest()
         if (get_pos_x() + get_pos_y()) % 2 == 0:
@@ -12,5 +12,8 @@ def plant_tree_or_bush():
         use_item(Items.Water)
 
 
-while True:
-    for_each(plant_tree_or_bush)
+def infinite_trees():
+    clear_grid(Grounds.Soil, Entities.Bush)
+
+    while True:
+        for_each(_plant_tree_or_bush)

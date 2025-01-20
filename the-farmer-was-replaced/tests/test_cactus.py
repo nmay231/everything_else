@@ -43,10 +43,10 @@ def test_bubblesort(row, start_index):
         mock.patch("farmers.Cactus.measure", state.measure, create=True),
         mock.patch("farmers.Cactus.swap", state.swap, create=True),
     ):
-        from farmers.Cactus import bubble_sort
+        from farmers.Cactus import _bubble_sort_cactus
 
         state.row = row[:]
         state.index = start_index % len(row)
-        bubble_sort(1, -1, lambda: state.index)
+        _bubble_sort_cactus(1, -1, lambda: state.index)
 
     assert state.row == sorted(row)

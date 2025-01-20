@@ -1,8 +1,13 @@
+from collections.abc import Callable  # noqa: F401
+
+from farmers.Utilities import clear_grid, for_each
+
+
 def _init_cell_cactus():
     plant(Entities.Cactus)
 
 
-def bubble_sort(forward, backward, get_pos):
+def _bubble_sort_cactus(forward, backward, get_pos):
     while get_pos() > 0:
         move(backward)
 
@@ -33,10 +38,10 @@ def bubble_sort(forward, backward, get_pos):
 
 def gen_cactus():
     for _ in range(get_world_size()):
-        bubble_sort(North, South, get_pos_y)
+        _bubble_sort_cactus(North, South, get_pos_y)
         move(East)
     for _ in range(get_world_size()):
-        bubble_sort(East, West, get_pos_x)
+        _bubble_sort_cactus(East, West, get_pos_x)
         move(North)
     harvest()
     for_each(_init_cell_cactus)
