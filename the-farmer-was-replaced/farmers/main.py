@@ -1,25 +1,5 @@
 from farmers.Polyculture import infinite_polyculture
 
-poly = simulate(
-    "simulation",
-    Unlocks,
-    {Items.Hay: 100000, Items.Wood: 100000},
-    {"WHICH": "polyculture"},
-    -1,
-    64,
-)
-quick_print("POLY TIME", poly)  # 4770.3
-
-no_poly = simulate(
-    "simulation",
-    Unlocks,
-    {Items.Hay: 100000, Items.Wood: 100000},
-    {"WHICH": "individual"},
-    -1,
-    64,
-)
-quick_print("NO-POLY TIME", no_poly)  # 10356.74
-
 # TODO: Simulations of difference strats for optimization, Dinos, Leaderboard (at least one of everything)
 infinite_polyculture()
 

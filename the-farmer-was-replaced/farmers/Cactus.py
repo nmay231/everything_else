@@ -1,7 +1,7 @@
 from collections.abc import Callable  # noqa: F401
 
 from farmers.lib.measure_int import measure
-from farmers.Utilities import clear_grid, for_each
+from farmers.utils import clear_grid, for_each
 
 
 def _init_cell_cactus():  # type: () -> None

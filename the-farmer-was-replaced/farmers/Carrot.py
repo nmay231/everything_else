@@ -1,4 +1,4 @@
-from farmers.Utilities import clear_grid, for_each
+from farmers.utils import clear_grid, for_each
 
 
 def _handle_tile_carrot():  # type: () -> None

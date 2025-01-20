@@ -1,4 +1,4 @@
-from farmers.Utilities import clear_grid, for_each
+from farmers.utils import clear_grid, for_each
 
 
 def _plant_tree_or_bush():  # type: () -> None

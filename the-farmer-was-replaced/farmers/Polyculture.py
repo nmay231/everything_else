@@ -1,5 +1,5 @@
 from farmers.lib.global_context import Context  # noqa: F401
-from farmers.Utilities import clear_grid, for_each_globals, lazy_to_pos
+from farmers.utils import clear_grid, for_each_globals, lazy_to_pos
 
 
 def _polyculture_chain(ctx):  # type: (Context) -> None

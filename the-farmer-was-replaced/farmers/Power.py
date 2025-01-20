@@ -1,5 +1,5 @@
 from farmers.lib.measure_int import measure
-from farmers.Utilities import clear_grid, lazy_to_pos
+from farmers.utils import clear_grid, lazy_to_pos
 
 TILE_COUNT = get_world_size() ** 2
 

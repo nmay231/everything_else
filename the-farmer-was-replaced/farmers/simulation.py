@@ -1,8 +1,8 @@
-from farmers.Carrots import _handle_tile_carrot
+from farmers.Carrot import _handle_tile_carrot
 from farmers.lib.global_context import Context  # noqa: F401
 from farmers.Polyculture import _polyculture_chain
-from farmers.Trees import _plant_tree_or_bush
-from farmers.Utilities import clear_grid, for_each, for_each_globals
+from farmers.utils import clear_grid, for_each, for_each_globals
+from farmers.Wood import _plant_tree_or_bush
 
 quick_print("start", WHICH)
 times = 5
@@ -27,8 +27,8 @@ if WHICH == "polyculture":
 else:
 
     def tmp():  # type: () -> None
-        """The default Hay collector relies on Grasslands naturally regrowing
-        Grass instead of having to plant it manually"""
+        # The default Hay collector relies on Grasslands naturally regrowing
+        # Grass instead of having to plant it manually
         harvest()
         plant(Entities.Grass)
 
