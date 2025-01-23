@@ -144,24 +144,161 @@ fn shortest_sequence(
     assert_eq!(start_path[0].1, 0, "We don't press the starting point");
     assert!(n_iters > 0);
 
+    type Transition = (Point<usize>, Point<usize>, usize, Point<usize>);
+    type MoveSet = Vec<(Point<usize>, usize)>;
+    type TransitionMap = HashMap<Transition, Result<MoveSet, [MoveSet; 2]>>;
+
+    // Return the minimum transition if unique, while updating the transition map
+    fn prune_transitions<'a>(
+        by_transitions: &'a mut TransitionMap,
+        key: &Transition,
+    ) -> Option<Result<&'a MoveSet, Vec<&'a MoveSet>>> {
+        let mut move_sets = match by_transitions.get(key) {
+            None => return None,
+            Some(Ok(move_set)) => return Some(Ok(move_set)),
+            Some(Err(move_sets)) => move_sets.to_vec(),
+        };
+
+        let paths_were_equal = move_sets
+            .iter()
+            .map(|move_set| move_set.iter().map(|(_, cost)| cost).sum::<usize>())
+            .all_equal();
+        assert!(
+            paths_were_equal,
+            "If one path was better than the other, then it should have been pruned already"
+        );
+
+        let tmp = move_sets;
+        move_sets = vec![];
+        for move_set in tmp.into_iter() {
+            for (a, b) in move_set.iter().tuple_windows() {
+                let ((start, _), (dest, _)) = (a, b);
+
+                match by_transitions.get(todo!()) {}
+
+                let diff = dest.try_map_isize().unwrap() - start.try_map_isize().unwrap();
+
+                let (x, y, dx, dy) = match diff {
+                    Point {
+                        x: x @ 0..,
+                        y: y @ 0..,
+                    } => (x as usize, y as usize, Direc::East, Direc::South),
+                    Point {
+                        x: x @ 0..,
+                        y: y @ ..0,
+                    } => (x as usize, -y as usize, Direc::East, Direc::North),
+                    Point {
+                        x: x @ ..0,
+                        y: y @ ..0,
+                    } => (-x as usize, -y as usize, Direc::West, Direc::North),
+                    Point {
+                        x: x @ ..0,
+                        y: y @ 0..,
+                    } => (-x as usize, y as usize, Direc::West, Direc::South),
+                };
+
+                let move_x = (DIREC_KEYPAD.get_slot_of(&Key::Move(dx)), x);
+                let move_y = (DIREC_KEYPAD.get_slot_of(&Key::Move(dy)), y);
+                let activate = (DIREC_KEYPAD.get_slot_of(&Key::Activate), *activations);
+
+                let extend = if x == 0 {
+                    vec![move_y, activate]
+                } else if y == 0 {
+                    vec![move_x, activate]
+                } else {
+                    let horizontal = Point::new_xy(dest.x, start.y);
+                    let vertical = Point::new_xy(start.x, dest.y);
+
+                    if horizontal == panic_button {
+                        // Must go vertical first
+                        vec![move_y, move_x, activate]
+                    } else if vertical == panic_button {
+                        // Must go horizontal first
+                        vec![move_x, move_y, activate]
+                    } else {
+                        // We check one of the sub-paths later
+                        let [a, b] = [
+                            vec![move_x, move_y, activate],
+                            vec![move_y, move_x, activate],
+                        ];
+                        let mut new_path = new_path.clone();
+                        new_path.extend(a.clone());
+                        let old_path = old_path[index + 1..].to_vec();
+                        possible_paths.push_front((old_path, new_path, pad, n_iters));
+
+                        by_transition
+                            .entry((*start, *dest, *activations, panic_button))
+                            .and_modify(|_| unreachable!("We assume key is not present"))
+                            .or_insert(Err([a, b.clone()]));
+
+                        b
+                    }
+                };
+                new_path.extend(extend.clone().into_iter());
+
+                by_transition
+                    .entry((*start, *dest, *activations, panic_button))
+                    .or_insert(Ok(extend));
+            }
+        }
+        todo!();
+        // if move_sets.len() == 1 {
+        //     return Some(Ok(move_sets.iter().next().unwrap()));
+        // }
+
+        // So, we end up with a tree of possible transitions up to a certain
+        // depth. We stop at the earliest commonly available depth. If some
+        // leaves are longer than others, we need to prune those. If we haven't
+        // reduced the next transition to a single move-set, then we return the
+        // error condition of the two possible move_sets. While we prune to an
+        // indefinite depth, we only ever return the next one or two possible
+        // move set(s).
+        //
+        // Thoughts:
+        // - Is it reasonable to call this every time I check for cached
+        //   results? Or will I get large un-prunable subtrees?
+        // - Is Up and Right always irreducible? I don't think so because each
+        //   recursive step goes back to Activate eventually meaning you always
+        //   get either Left or Down.
+        // - I might also need to detect cycles that happen to be shorter, not
+        //   just total move length. Actually, that doesn't matter because
+        //   infinite boxes of chocolates is the same as infinite chocolate.
+    }
+
+    let mut by_transition = TransitionMap::new();
     let mut min_by_iter = HashMap::new();
     let mut possible_paths = VecDeque::from([(start_path, vec![], keypad, n_iters)]);
+    let mut max_iters = 10000_usize;
 
     while let Some((old_path, mut new_path, pad, n_iters)) = possible_paths.pop_front() {
+        max_iters -= 1;
+        if max_iters == 0 {
+            println!(
+                "len: {:?}",
+                (
+                    possible_paths.len(),
+                    &possible_paths.iter().take(5).collect_vec()
+                )
+            );
+            break;
+        }
         if new_path.len() == 0 {
+            if min_by_iter.get(&n_iters).is_none() {
+                println!("count: {}", possible_paths.len());
+            }
             let min_length = min_by_iter.entry(n_iters).or_insert(usize::MAX);
             let path_len = old_path.iter().map(|(_, steps)| steps).sum::<usize>();
             if path_len > *min_length {
                 continue;
             }
 
-            if path_len < *min_length {
-                print!("iter: {}, path: ", n_iters - 1);
-                for x in &old_path {
-                    print!("{}", format!("{}", pad.at_slot(&x.0)).repeat(x.1));
-                }
-                println!();
-            }
+            // if path_len < *min_length {
+            //     print!("iter: {}, path: ", n_iters - 1);
+            //     for x in &old_path {
+            //         print!("{}", format!("{}", pad.at_slot(&x.0)).repeat(x.1));
+            //     }
+            //     println!();
+            // }
 
             *min_length = path_len;
             if n_iters == 1 {
@@ -172,61 +309,35 @@ fn shortest_sequence(
         }
         assert!(n_iters > 1);
 
+        let panic_button = pad.get_slot_of(&Key::Panic);
+
         for (index, (a, b)) in old_path.iter().tuple_windows().enumerate() {
             let (source, _) = a;
             let (target, activations) = b;
 
-            let diff = target.try_map_isize().unwrap() - source.try_map_isize().unwrap();
-
-            let (x, y, dx, dy) = match diff {
-                Point {
-                    x: x @ 0..,
-                    y: y @ 0..,
-                } => (x as usize, y as usize, Direc::East, Direc::South),
-                Point {
-                    x: x @ 0..,
-                    y: y @ ..0,
-                } => (x as usize, -y as usize, Direc::East, Direc::North),
-                Point {
-                    x: x @ ..0,
-                    y: y @ ..0,
-                } => (-x as usize, -y as usize, Direc::West, Direc::North),
-                Point {
-                    x: x @ ..0,
-                    y: y @ 0..,
-                } => (-x as usize, y as usize, Direc::West, Direc::South),
-            };
-
-            let panic_button = pad.get_slot_of(&Key::Panic);
-            let move_x = (DIREC_KEYPAD.get_slot_of(&Key::Move(dx)), x);
-            let move_y = (DIREC_KEYPAD.get_slot_of(&Key::Move(dy)), y);
-            let activate = (DIREC_KEYPAD.get_slot_of(&Key::Activate), *activations);
-
-            let extend = if x == 0 {
-                vec![move_y, activate]
-            } else if y == 0 {
-                vec![move_x, activate]
-            } else {
-                let horizontal = Point::new_xy(target.x, source.y);
-                let vertical = Point::new_xy(source.x, target.y);
-
-                if horizontal == panic_button {
-                    // Must go vertical first
-                    vec![move_y, move_x, activate]
-                } else if vertical == panic_button {
-                    // Must go horizontal first
-                    vec![move_x, move_y, activate]
-                } else {
-                    // We check one of the paths later
-                    let mut new_path = new_path.clone();
-                    new_path.extend([move_x, move_y, activate]);
-                    let old_path = old_path[index + 1..].to_vec();
-                    possible_paths.push_front((old_path, new_path, pad, n_iters));
-
-                    vec![move_y, move_x, activate]
+            match prune_transitions(
+                &mut by_transition,
+                &(*source, *target, *activations, panic_button),
+            ) {
+                Some(Ok(move_set)) => {
+                    new_path.extend_from_slice(move_set);
+                    continue;
                 }
-            };
-            new_path.extend(extend.into_iter());
+                Some(Err(move_sets)) => {
+                    {
+                        let mut new_path = new_path.clone();
+                        new_path.extend(move_sets[0].clone());
+                        let old_path = old_path[index + 1..].to_vec();
+                        possible_paths.push_front((old_path, new_path, pad, n_iters));
+                    }
+                    new_path.extend_from_slice(move_sets[1]);
+                    continue;
+                }
+                None => (), // TODO: Just use empty arrays instead of Option<Result<>>
+            }
+
+            todo!();
+            //
         }
 
         possible_paths.push_back((new_path, vec![], &DIREC_KEYPAD, n_iters - 1));
@@ -235,7 +346,7 @@ fn shortest_sequence(
     return *min_by_iter.get(&1).expect("to find answer");
 }
 
-fn partial_part1(text: &str) -> Vec<(usize, usize)> {
+fn partial_part1(text: &str, n_iters: usize) -> Vec<(usize, usize)> {
     let mut result = vec![];
     let activate_slot = NUMBER_KEYPAD.get_slot_of(&Key::Activate);
 
@@ -253,7 +364,7 @@ fn partial_part1(text: &str) -> Vec<(usize, usize)> {
             )
             .collect_vec();
 
-        let short = shortest_sequence(keys, &NUMBER_KEYPAD, 4);
+        let short = shortest_sequence(keys, &NUMBER_KEYPAD, n_iters);
         let x = line[0..3].parse::<usize>().unwrap();
         result.push((x, short));
     }
@@ -262,11 +373,14 @@ fn partial_part1(text: &str) -> Vec<(usize, usize)> {
 }
 
 fn part1(text: &str) -> usize {
-    return partial_part1(text).into_iter().map(|(a, b)| a * b).sum();
+    return partial_part1(text, 4).into_iter().map(|(a, b)| a * b).sum();
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    return partial_part1(text, 25)
+        .into_iter()
+        .map(|(a, b)| a * b)
+        .sum();
 }
 
 fn main() -> std::io::Result<()> {
@@ -297,7 +411,7 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(
-            crate::partial_part1(TEXT1),
+            crate::partial_part1(TEXT1, 4),
             vec![(29, 68), (980, 60), (179, 68), (456, 64), (379, 64)]
         );
     }
