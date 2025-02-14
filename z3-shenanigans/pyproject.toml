@@ -10,6 +10,7 @@ z3-solver = "^4.8.17"
 ipython = "^8.4.0"
 pyreadline = "^2.1"
 ipykernel = "^6.16.0"
+numpy = "^1.23.5"
 
 [tool.poetry.dev-dependencies]
 

@@ -116,3 +116,5 @@ s.add(*(Distinct() for _ in range(0)))
 #  I will say that I suspect I will not be able to use the same language structure for checking and solving, and therefore it would be better to have none of them shared.
 
 # %%
+
+# Next puzzle to solve with SAT is the pipes or netlink puzzle since everything is a local rule anyways.
