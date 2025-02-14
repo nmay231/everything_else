@@ -1,3 +1,5 @@
+// TODO: Potentially unclear example. I am just committing this, because I'm tired of so many leftover git stashes
+
 struct Point {
     x: i64,
     y: i64,
