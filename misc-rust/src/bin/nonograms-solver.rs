@@ -4,6 +4,16 @@ enum GridCell {
     Settled(bool),
 }
 
+impl From<GridCell> for char {
+    fn from(value: GridCell) -> Self {
+        match value {
+            GridCell::Unknown => ' ',
+            GridCell::Settled(true) => '■',
+            GridCell::Settled(false) => 'X',
+        }
+    }
+}
+
 struct Nonograms {
     // TODO: Assume square grid
     size: usize,
@@ -24,10 +34,42 @@ impl Nonograms {
             col_clues,
         }
     }
+
+    fn debug_print(&self) {
+        for row in 0..=2 * self.size {
+            let chars = match row {
+                0 => "┏━┯┳┓",
+                _ if row == 2 * self.size => "┗━┷┻┛",
+                _ if row % 10 == 0 => "┣━┿╋┫",
+                _ if row & 1 == 1 => "┃ │┃┃",
+                _ if row & 1 == 0 => "┠─┼╂┨",
+                _ => unreachable!(),
+            };
+            let chars = chars.chars().collect::<Vec<_>>();
+            print!("{}", chars[0]);
+            for col in 1..2 * self.size {
+                let mut c = if col & 1 == 1 {
+                    chars[1]
+                } else if col % 10 == 0 {
+                    chars[3]
+                } else {
+                    chars[2]
+                };
+
+                if c == ' ' {
+                    c = self.grid[row / 2][col / 2].into();
+                }
+                print!("{}", c);
+            }
+            print!("{}", chars[4]);
+            println!();
+        }
+    }
 }
 
 fn main() {
-    let grid = Nonograms::new(
+    // Source: A manual transcription of Nonogram Galaxies puzzle #1-318
+    let mut grid = Nonograms::new(
         30,
         vec![
             vec![1, 2, 1, 2, 2, 2, 1, 3, 1, 1],
@@ -95,29 +137,8 @@ fn main() {
         ],
     );
 
-    println!(
-        "number of row clues: {}",
-        grid.row_clues
-            .iter()
-            .fold(0, |sum, clues| { sum + clues.len() })
-    );
-    println!(
-        "number of col clues: {}",
-        grid.col_clues
-            .iter()
-            .fold(0, |sum, clues| { sum + clues.len() })
-    );
+    grid.grid[0][0] = GridCell::Settled(true);
+    grid.grid[0][1] = GridCell::Settled(false);
 
-    println!(
-        "sum of row clues: {}",
-        grid.row_clues
-            .iter()
-            .fold(0, |sum, clues| { sum + clues.iter().sum::<u8>() as u32 })
-    );
-    println!(
-        "sum of col clues: {}",
-        grid.col_clues
-            .iter()
-            .fold(0, |sum, clues| { sum + clues.iter().sum::<u8>() as u32 })
-    );
+    grid.debug_print();
 }
