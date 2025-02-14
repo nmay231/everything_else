@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum GridCell {
     Unknown,
     Settled(bool),
@@ -17,6 +17,7 @@ impl From<GridCell> for char {
 struct Nonograms {
     // TODO: Assume square grid
     size: usize,
+    // grid: Vec<GridCell>,
     grid: Vec<Vec<GridCell>>,
     row_clues: Vec<Vec<u8>>,
     col_clues: Vec<Vec<u8>>,
@@ -32,6 +33,63 @@ impl Nonograms {
             grid: vec![vec![GridCell::Unknown; size]; size],
             row_clues,
             col_clues,
+        }
+    }
+
+    // TODO: remove print statements and instead return a puzzle difficulty
+    // summary object or something.
+    pub fn solve(&mut self) {
+        let settled = self.fill_simple_overlap();
+        println!("There were {} cells settled by simple overlap", settled);
+        self.debug_print();
+    }
+
+    pub fn fill_simple_overlap(&mut self) -> usize {
+        let mut settled = 0;
+        for (row, clues) in self.row_clues.iter().enumerate() {
+            Self::_fill_simple_overlap(self.size, clues, |index, replacement| match replacement {
+                None => Some(self.grid[row][index]),
+                Some(replace) => {
+                    self.grid[row][index] = replace;
+                    settled += 1;
+                    None
+                }
+            });
+        }
+        for (col, clues) in self.col_clues.iter().enumerate() {
+            Self::_fill_simple_overlap(self.size, clues, |index, replacement| match replacement {
+                None => Some(self.grid[index][col]),
+                Some(replace) => {
+                    self.grid[index][col] = replace;
+                    settled += 1;
+                    None
+                }
+            });
+        }
+        return settled;
+    }
+
+    fn _fill_simple_overlap<'a: 'b, 'b>(
+        size: usize,
+        clues: &'a Vec<u8>,
+        mut get_or_set: impl FnMut(usize, Option<GridCell>) -> Option<GridCell>,
+    ) {
+        let sum = clues.iter().sum::<u8>() as usize;
+        let leeway = size
+            .checked_sub(sum + clues.len() - 1)
+            .expect("clues were too large for the grid size");
+
+        let mut start = 0;
+        for clue in clues {
+            let clue = *clue as usize;
+            for index in start + leeway..start + clue {
+                let cell =
+                    get_or_set(index, None).expect("should've return something when passed None");
+                assert_ne!(cell, GridCell::Settled(false));
+                assert_eq!(None, get_or_set(index, Some(GridCell::Settled(true))))
+            }
+
+            start += clue + 1;
         }
     }
 
@@ -137,8 +195,5 @@ fn main() {
         ],
     );
 
-    grid.grid[0][0] = GridCell::Settled(true);
-    grid.grid[0][1] = GridCell::Settled(false);
-
-    grid.debug_print();
+    grid.solve();
 }
