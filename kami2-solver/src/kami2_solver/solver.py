@@ -1,6 +1,6 @@
 import copy
+from collections.abc import Collection, Generator
 from dataclasses import dataclass
-from typing import Collection, Generator
 
 from .graph import ColorGraph, Node
 from .utils import ColorTup

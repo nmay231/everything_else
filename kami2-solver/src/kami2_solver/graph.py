@@ -1,6 +1,6 @@
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Iterable, Mapping
 
 from .utils import ColorTup
 
@@ -127,9 +127,9 @@ class ColorGraph:
         indexes = indexes_ or {
             node: i for i, node in enumerate(self.connections.keys())
         }
-        assert len(indexes) == len(
-            self.connections
-        ), "Indexes must be the same length as the graph"
+        assert len(indexes) == len(self.connections), (
+            "Indexes must be the same length as the graph"
+        )
 
         node_count = len(self.connections)
         distances: list[list[int]] = [

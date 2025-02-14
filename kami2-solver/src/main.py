@@ -2,7 +2,7 @@ import math
 import sys
 import time
 from collections import defaultdict
-from itertools import cycle, product, zip_longest
+from itertools import cycle, islice, product, zip_longest
 from typing import Any, cast
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -11,7 +11,7 @@ from PIL.ImageStat import Stat
 from sklearn.cluster import AgglomerativeClustering
 
 from kami2_solver.graph import ColorGraph, Node
-from kami2_solver.solver import SolverStep, solve
+from kami2_solver.solver import SolverStep
 from kami2_solver.utils import ColorTup, get_mean_color, make_json_serializer
 
 # F'in Pylance can't auto import but it keeps removing it from imports
@@ -214,3 +214,50 @@ for i, move in enumerate(moves, start=1):
     )
 
 edges.show()
+
+
+# TODO: Old stashed code. No clue if it works or is useful
+def _old_git_stash_code():
+    for i, color in enumerate(used_colors):
+        x = i % 5
+        y = i // 5
+        palette.paste(color, (100 * x, 100 * y, 100 * (x + 1), 100 * (y + 1)))
+    # palette.show()
+
+    # edges.show()
+
+    # Perform hierarchical clustering
+    distances = [[float("inf")] * len(used_colors) for _ in range(len(used_colors))]
+
+    for i, color in enumerate(used_colors):
+        distances[i][i] = 0
+        for j, other in islice(enumerate(used_colors), i + 1, None):
+            distance = sum((c1 - c2) ** 2 for c1, c2 in zip(color, other))
+            distances[i][j] = distance
+            distances[j][i] = distance
+
+    lookup = dict(zip(used_colors, range(len(used_colors))))
+    clusters: list[list[ColorTup]] = [used_colors[:]]
+
+    for _ in range(10):
+        for i, color in enumerate(clusters):
+            min_distance = min(distances[i])
+            min_index = distances[i].index(min_distance)
+            if min_distance > 0:
+                clusters[i] = clusters[min_index]
+                clusters[min_index] = color
+                distances[i][min_index] = float("inf")
+                distances[min_index][i] = float("inf")
+
+    representatives = defaultdict[ColorTup, list[ColorTup]](list)
+
+    for color in used_colors:
+        for rep in representatives.keys():
+            diff = sum((c1 - c2) ** 2 for c1, c2 in zip(color, rep))
+            if diff < 4000:
+                representatives[rep].append(color)
+                break
+        else:
+            representatives[color] = [color]
+
+    print(len(representatives))
