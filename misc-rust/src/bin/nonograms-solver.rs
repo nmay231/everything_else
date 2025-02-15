@@ -217,6 +217,44 @@ impl Nonograms {
         return settled;
     }
 
+    pub(crate) fn _one_direction<'a>(
+        mut holes: impl Iterator<Item = &'a u8>,
+        rocks: impl Iterator<Item = &'a u8>,
+    ) -> Vec<Vec<usize>> {
+        let mut rocks = rocks.enumerate();
+        let Some((mut rock_i, mut rock)) = rocks.next() else {
+            return holes.map(|_| vec![]).collect();
+        };
+        let mut alignments = vec![];
+        let mut last_alignment = vec![];
+
+        'holes_loop: for hole in &mut holes {
+            let mut hole = *hole;
+            while hole >= *rock {
+                last_alignment.push(rock_i);
+
+                if hole == *rock {
+                    hole = 0;
+                } else {
+                    hole -= *rock + 1;
+                }
+
+                let Some(next_rock) = rocks.next() else {
+                    break 'holes_loop;
+                };
+                (rock_i, rock) = next_rock;
+            }
+
+            alignments.push(last_alignment);
+            last_alignment = vec![];
+        }
+
+        assert_eq!(rocks.next(), None);
+        alignments.push(last_alignment);
+        alignments.extend(holes.map(|_| vec![]));
+        return alignments;
+    }
+
     fn debug_print(&self) {
         for row in 0..=2 * self.size {
             let chars = match row {
@@ -320,4 +358,32 @@ fn main() {
     );
 
     grid.solve();
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Nonograms;
+
+    #[rstest::rstest]
+    #[case(vec![5, 6], vec![], vec![vec![], vec![]])]
+    #[case(vec![5, 6], vec![4], vec![vec![0], vec![]])]
+    #[case(vec![5, 6], vec![5], vec![vec![0], vec![]])]
+    #[case(vec![5, 6], vec![6], vec![vec![], vec![0]])]
+    #[case(vec![5, 6], vec![2, 2, 2], vec![vec![0, 1], vec![2]])]
+    #[case(vec![5, 1], vec![1, 1, 1, 1], vec![vec![0, 1, 2], vec![3]])]
+    #[case(vec![5, 1], vec![3, 1, 1], vec![vec![0, 1], vec![2]])]
+    #[case(vec![5, 1], vec![1, 3, 1], vec![vec![0, 1], vec![2]])]
+    #[case(vec![6, 1], vec![3, 1, 1], vec![vec![0, 1], vec![2]])]
+    #[case(vec![6, 1], vec![1, 3, 1], vec![vec![0, 1], vec![2]])]
+    #[case(vec![1, 2, 3, 4, 5], vec![5], vec![vec![], vec![], vec![], vec![], vec![0]])]
+    fn test_one_direction(
+        #[case] holes: Vec<u8>,
+        #[case] rocks: Vec<u8>,
+        #[case] expected: Vec<Vec<usize>>,
+    ) {
+        assert_eq!(
+            Nonograms::_one_direction(holes.iter(), rocks.iter()),
+            expected
+        );
+    }
 }
