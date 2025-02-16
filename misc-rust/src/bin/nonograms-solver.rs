@@ -217,21 +217,42 @@ impl Nonograms {
         return settled;
     }
 
+    pub fn apply_rock_slide(holes: &[u8], rocks: &[u8]) -> Vec<HashSet<usize>> {
+        assert!(
+            holes.len() > 1,
+            "No point in knowing which hole the rocks fall in if there is only one hole"
+        );
+
+        let leftmost = Self::_one_direction(holes.iter(), rocks.iter());
+        let rightmost = Self::_one_direction(holes.iter().rev(), rocks.iter().rev());
+
+        assert_eq!(leftmost.len(), rightmost.len());
+        return leftmost
+            .into_iter()
+            .zip(rightmost)
+            .map(|(left, right)| {
+                left.intersection(&right)
+                    .map(ToOwned::to_owned)
+                    .collect::<HashSet<usize>>()
+            })
+            .collect();
+    }
+
     pub(crate) fn _one_direction<'a>(
         mut holes: impl Iterator<Item = &'a u8>,
         rocks: impl Iterator<Item = &'a u8>,
-    ) -> Vec<Vec<usize>> {
+    ) -> Vec<HashSet<usize>> {
         let mut rocks = rocks.enumerate();
         let Some((mut rock_i, mut rock)) = rocks.next() else {
-            return holes.map(|_| vec![]).collect();
+            return holes.map(|_| HashSet::new()).collect();
         };
         let mut alignments = vec![];
-        let mut last_alignment = vec![];
+        let mut last_alignment = HashSet::new();
 
         'holes_loop: for hole in &mut holes {
             let mut hole = *hole;
             while hole >= *rock {
-                last_alignment.push(rock_i);
+                last_alignment.insert(rock_i);
 
                 if hole == *rock {
                     hole = 0;
@@ -246,12 +267,12 @@ impl Nonograms {
             }
 
             alignments.push(last_alignment);
-            last_alignment = vec![];
+            last_alignment = HashSet::new();
         }
 
         assert_eq!(rocks.next(), None);
         alignments.push(last_alignment);
-        alignments.extend(holes.map(|_| vec![]));
+        alignments.extend(holes.map(|_| HashSet::new()));
         return alignments;
     }
 
@@ -362,6 +383,8 @@ fn main() {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashSet;
+
     use crate::Nonograms;
 
     #[rstest::rstest]
@@ -384,6 +407,9 @@ mod test {
         assert_eq!(
             Nonograms::_one_direction(holes.iter(), rocks.iter()),
             expected
+                .into_iter()
+                .map(HashSet::<usize>::from_iter)
+                .collect::<Vec<_>>()
         );
     }
 }
