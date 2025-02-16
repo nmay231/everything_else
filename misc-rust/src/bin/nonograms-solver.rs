@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum GridCell {
     Unknown,
@@ -22,6 +24,7 @@ enum RowOrCol {
     Col(usize),
 }
 
+#[derive(Debug, Clone)]
 struct Nonograms {
     // TODO: Assume square grid
     size: usize,
@@ -217,6 +220,23 @@ impl Nonograms {
         return settled;
     }
 
+    pub fn get_holes(&self, at: RowOrCol) -> Vec<u8> {
+        match at {
+            RowOrCol::Row(row) => (0..self.size)
+                .map(|i| self.grid[row][i])
+                .group_by(|cell| cell == &GridCell::Settled(false))
+                .into_iter()
+                .filter_map(|(is_hole, group)| (!is_hole).then(|| group.count() as u8))
+                .collect(),
+            RowOrCol::Col(col) => (0..self.size)
+                .map(|i| self.grid[i][col])
+                .group_by(|cell| cell == &GridCell::Settled(false))
+                .into_iter()
+                .filter_map(|(is_hole, group)| (!is_hole).then(|| group.count() as u8))
+                .collect(),
+        }
+    }
+
     pub fn apply_rock_slide(holes: &[u8], rocks: &[u8]) -> Vec<HashSet<usize>> {
         assert!(
             holes.len() > 1,
@@ -308,9 +328,9 @@ impl Nonograms {
     }
 }
 
-fn main() {
+fn init_example_nonogram() -> Nonograms {
     // Source: A manual transcription of Nonogram Galaxies puzzle #1-318
-    let mut grid = Nonograms::new(
+    Nonograms::new(
         30,
         vec![
             vec![1, 2, 1, 2, 2, 2, 1, 3, 1, 1],
@@ -376,7 +396,11 @@ fn main() {
             vec![1, 5, 1, 7, 1, 2, 1],
             vec![1, 2, 4, 1, 2, 2],
         ],
-    );
+    )
+}
+
+fn main() {
+    let mut grid = init_example_nonogram();
 
     grid.solve();
 }
@@ -385,7 +409,7 @@ fn main() {
 mod test {
     use std::collections::HashSet;
 
-    use crate::Nonograms;
+    use crate::{init_example_nonogram, GridCell, Nonograms, RowOrCol};
 
     #[rstest::rstest]
     #[case(vec![5, 6], vec![], vec![vec![], vec![]])]
@@ -411,5 +435,65 @@ mod test {
                 .map(HashSet::<usize>::from_iter)
                 .collect::<Vec<_>>()
         );
+    }
+
+    // TODO: This is not the best way to write this test (the initialization is
+    // separate from the test, but whatever)
+    #[rstest::fixture]
+    #[once]
+    fn get_holes_example_nonograms() -> Nonograms {
+        // I don't actually need the clues for this test, so this counts as a
+        // generic 30x30 grid.
+        let mut puzzle = init_example_nonogram();
+
+        let shaded = GridCell::Settled(true);
+        let empty = GridCell::Settled(false);
+
+        // Row(0)
+        puzzle.grid[0][5] = empty;
+        puzzle.grid[0][7] = shaded;
+        // Row(3)
+        puzzle.grid[3][0] = empty;
+        puzzle.grid[3][1] = empty;
+        puzzle.grid[3][2] = empty;
+        puzzle.grid[3][3] = empty;
+
+        puzzle.grid[3][7] = empty;
+        puzzle.grid[3][8] = empty;
+        puzzle.grid[3][9] = empty;
+
+        puzzle.grid[3][11] = empty;
+        puzzle.grid[3][12] = shaded;
+        puzzle.grid[3][13] = empty;
+
+        puzzle.grid[3][16] = empty;
+
+        puzzle.grid[3][27] = empty;
+        puzzle.grid[3][28] = empty;
+        puzzle.grid[3][29] = empty;
+        // Col(6)
+        puzzle.grid[1][6] = empty;
+        puzzle.grid[28][6] = empty;
+        // Row(4)
+        puzzle.grid[4][0] = shaded;
+        puzzle.grid[4][1] = empty;
+        puzzle.grid[4][28] = empty;
+        puzzle.grid[4][29] = shaded;
+
+        return puzzle;
+    }
+
+    #[rstest::rstest]
+    #[case(RowOrCol::Row(0), vec![5, 24])]
+    #[case(RowOrCol::Row(3), vec![3, 1, 1, 2, 10])]
+    #[case(RowOrCol::Col(6), vec![1, 26, 1])]
+    #[case(RowOrCol::Row(4), vec![1, 26, 1])]
+    fn get_holes(
+        get_holes_example_nonograms: &Nonograms,
+        #[case] row_or_col: RowOrCol,
+        #[case] expected: Vec<u8>,
+    ) {
+        let puzzle = get_holes_example_nonograms;
+        assert_eq!(puzzle.get_holes(row_or_col), expected);
     }
 }
