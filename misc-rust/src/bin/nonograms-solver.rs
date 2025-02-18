@@ -237,7 +237,27 @@ impl Nonograms {
         }
     }
 
-    pub fn apply_rock_slide(holes: &[u8], rocks: &[u8]) -> Vec<HashSet<usize>> {
+    // TODO: I kinda hate that everything is being dumped into this class. I
+    // should move some of these methods into a module called holy_rocks (yes, I
+    // did just do that. You're welcome).
+
+    /// Revser
+    pub(crate) fn reverse_and_invert(
+        indices: Vec<HashSet<usize>>,
+        x: usize,
+    ) -> Vec<HashSet<usize>> {
+        return indices
+            .into_iter()
+            .rev()
+            .map(|indices| indices.into_iter().map(|index| x - index).collect())
+            .collect();
+    }
+
+    /// By placing rocks (aka clues) from left to right and then right to left,
+    /// some of the rocks end up in the same hole. This means that rock can only
+    /// go in that hole, which can be useful if the hole is smaller than twice
+    /// the length of the hole since that requires at least one shaded cell.
+    pub fn hole_identities_intersection(holes: &[u8], rocks: &[u8]) -> Vec<HashSet<usize>> {
         assert!(
             holes.len() > 1,
             "No point in knowing which hole the rocks fall in if there is only one hole"
@@ -245,8 +265,10 @@ impl Nonograms {
 
         let leftmost = Self::_one_direction(holes.iter(), rocks.iter());
         let rightmost = Self::_one_direction(holes.iter().rev(), rocks.iter().rev());
-
+        let rightmost = Self::reverse_and_invert(rightmost, holes.len() - 1);
         assert_eq!(leftmost.len(), rightmost.len());
+        assert_eq!(leftmost.len(), holes.len());
+
         return leftmost
             .into_iter()
             .zip(rightmost)
@@ -254,6 +276,45 @@ impl Nonograms {
                 left.intersection(&right)
                     .map(ToOwned::to_owned)
                     .collect::<HashSet<usize>>()
+            })
+            .collect();
+    }
+
+    /// As opposed to hole_identities_intersection(), this method returns the
+    /// indices of *all* rocks that can possibly reside in each hole rather than
+    /// the rocks that must reside in that hole.
+    pub fn hole_identities_union(holes: &[u8], rocks: &[u8]) -> Vec<HashSet<usize>> {
+        assert!(
+            holes.len() > 1,
+            "No point in knowing which hole the rocks fall in if there is only one hole"
+        );
+        let leftmost = Self::_one_direction(holes.iter(), rocks.iter());
+        let rightmost = Self::_one_direction(holes.iter().rev(), rocks.iter().rev());
+        let rightmost = Self::reverse_and_invert(rightmost, holes.len() - 1);
+        assert_eq!(leftmost.len(), rightmost.len());
+        assert_eq!(leftmost.len(), holes.len());
+
+        let mut available = HashSet::<usize>::new();
+        return holes
+            .iter()
+            .enumerate()
+            .map(|(hole_i, hole)| {
+                available.extend(&leftmost[hole_i]);
+
+                let union = available
+                    .iter()
+                    .filter(|rock_i| rocks[**rock_i] <= *hole)
+                    .map(ToOwned::to_owned)
+                    .collect();
+
+                rightmost[hole_i].iter().for_each(|out_of_date| {
+                    assert!(
+                        available.remove(&out_of_date),
+                        "each rock should be accounted for exactly once"
+                    )
+                });
+
+                return union;
             })
             .collect();
     }
@@ -423,6 +484,9 @@ mod test {
     #[case(vec![6, 1], vec![3, 1, 1], vec![vec![0, 1], vec![2]])]
     #[case(vec![6, 1], vec![1, 3, 1], vec![vec![0, 1], vec![2]])]
     #[case(vec![1, 2, 3, 4, 5], vec![5], vec![vec![], vec![], vec![], vec![], vec![0]])]
+    #[case(vec![8, 8, 8], vec![1, 8, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 7, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 6, 1], vec![vec![0, 1], vec![2], vec![]])]
     fn test_one_direction(
         #[case] holes: Vec<u8>,
         #[case] rocks: Vec<u8>,
@@ -432,9 +496,47 @@ mod test {
             Nonograms::_one_direction(holes.iter(), rocks.iter()),
             expected
                 .into_iter()
-                .map(HashSet::<usize>::from_iter)
+                .map(HashSet::from_iter)
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[rstest::rstest]
+    #[case(vec![8, 8, 8], vec![1, 8, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 7, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 6, 1], vec![vec![], vec![], vec![]])]
+    fn hole_intersection(
+        #[case] holes: Vec<u8>,
+        #[case] rocks: Vec<u8>,
+        #[case] expected: Vec<Vec<usize>>,
+    ) {
+        let actual = Nonograms::hole_identities_intersection(&holes, &rocks);
+        assert_eq!(
+            actual,
+            expected
+                .into_iter()
+                .map(HashSet::from_iter)
+                .collect::<Vec<_>>()
+        )
+    }
+
+    #[rstest::rstest]
+    #[case(vec![8, 8, 8], vec![1, 8, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 7, 1], vec![vec![0], vec![1], vec![2]])]
+    #[case(vec![8, 8, 8], vec![1, 6, 1], vec![vec![0, 1], vec![0, 1, 2], vec![1, 2]])]
+    fn hole_union(
+        #[case] holes: Vec<u8>,
+        #[case] rocks: Vec<u8>,
+        #[case] expected: Vec<Vec<usize>>,
+    ) {
+        let actual = Nonograms::hole_identities_union(&holes, &rocks);
+        assert_eq!(
+            actual,
+            expected
+                .into_iter()
+                .map(HashSet::from_iter)
+                .collect::<Vec<_>>()
+        )
     }
 
     // TODO: This is not the best way to write this test (the initialization is
