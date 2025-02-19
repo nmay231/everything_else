@@ -5,15 +5,28 @@ use itertools::Itertools;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum GridCell {
     Unknown,
-    Settled(bool),
+    // Settled(bool),
+    Shaded,
+    Unshaded,
+}
+
+impl GridCell {
+    /// Returns None if Unknown
+    pub fn is_shaded(&self) -> Option<bool> {
+        match self {
+            GridCell::Unknown => None,
+            GridCell::Shaded => Some(true),
+            GridCell::Unshaded => Some(false),
+        }
+    }
 }
 
 impl From<GridCell> for char {
     fn from(value: GridCell) -> Self {
         match value {
             GridCell::Unknown => ' ',
-            GridCell::Settled(true) => '■',
-            GridCell::Settled(false) => 'X',
+            GridCell::Shaded => '■',
+            GridCell::Unshaded => 'X',
         }
     }
 }
@@ -53,13 +66,9 @@ impl Nonograms {
     /// new cell value isn't a settled value or differs from the existing
     /// settled value
     pub fn is_new_settled(existing: &GridCell, cell: &GridCell) -> bool {
-        match (cell, existing) {
-            (GridCell::Settled(_), GridCell::Unknown) => true,
-            (GridCell::Settled(will_be_shaded), GridCell::Settled(shaded))
-                if will_be_shaded == shaded =>
-            {
-                false
-            }
+        match (cell.is_shaded(), existing.is_shaded()) {
+            (Some(_), None) => true,
+            (Some(will_be_shaded), Some(shaded)) if will_be_shaded == shaded => false,
 
             _ => unreachable!("Could not replace grid cell {:?} with {:?}", existing, cell),
         }
@@ -119,8 +128,8 @@ impl Nonograms {
             for index in start + leeway..start + clue {
                 let cell =
                     get_or_set(index, None).expect("should've return something when passed None");
-                assert_ne!(cell, GridCell::Settled(false));
-                assert_eq!(None, get_or_set(index, Some(GridCell::Settled(true))))
+                assert_ne!(cell, GridCell::Unshaded);
+                assert_eq!(None, get_or_set(index, Some(GridCell::Shaded)))
             }
 
             start += clue + 1;
@@ -172,7 +181,7 @@ impl Nonograms {
             let mut start = 0;
             for (clue_index, clue) in clues.iter().enumerate() {
                 let clue = *clue as usize;
-                while start < line.len() && line[start] == GridCell::Settled(false) {
+                while start < line.len() && line[start] == GridCell::Unshaded {
                     identities[start] = cell_known_empty;
                     start += 1;
                 }
@@ -186,10 +195,10 @@ impl Nonograms {
                     // Example for a clue of 4: [unknown unknown x ...] => [x x x ...]
                     while let Some(rightmost_blocker) =
                         line[start..start + clue].iter().enumerate().rev().find_map(
-                            |(index, cell)| (cell == &GridCell::Settled(false)).then_some(index),
+                            |(index, cell)| (cell == &GridCell::Unshaded).then_some(index),
                         )
                     {
-                        let empty = GridCell::Settled(false);
+                        let empty = GridCell::Unshaded;
                         for set_to_empty in start..rightmost_blocker {
                             if Self::is_new_settled(&line[set_to_empty], &empty) {
                                 settled += 1;
@@ -206,8 +215,8 @@ impl Nonograms {
                 // of slots and clues and work with numbers exclusively at first.
             }
 
-            if line[clues[0] as usize] == GridCell::Settled(true) {
-                let empty = GridCell::Settled(false);
+            if line[clues[0] as usize] == GridCell::Shaded {
+                let empty = GridCell::Unshaded;
                 if Self::is_new_settled(&line[0], &empty) {
                     settled += 1;
                     line[0] = empty;
@@ -224,13 +233,13 @@ impl Nonograms {
         match at {
             RowOrCol::Row(row) => (0..self.size)
                 .map(|i| self.grid[row][i])
-                .group_by(|cell| cell == &GridCell::Settled(false))
+                .group_by(|cell| cell == &GridCell::Unshaded)
                 .into_iter()
                 .filter_map(|(is_hole, group)| (!is_hole).then(|| group.count() as u8))
                 .collect(),
             RowOrCol::Col(col) => (0..self.size)
                 .map(|i| self.grid[i][col])
-                .group_by(|cell| cell == &GridCell::Settled(false))
+                .group_by(|cell| cell == &GridCell::Unshaded)
                 .into_iter()
                 .filter_map(|(is_hole, group)| (!is_hole).then(|| group.count() as u8))
                 .collect(),
@@ -548,8 +557,8 @@ mod test {
         // generic 30x30 grid.
         let mut puzzle = init_example_nonogram();
 
-        let shaded = GridCell::Settled(true);
-        let empty = GridCell::Settled(false);
+        let shaded = GridCell::Shaded;
+        let empty = GridCell::Unshaded;
 
         // Row(0)
         puzzle.grid[0][5] = empty;
