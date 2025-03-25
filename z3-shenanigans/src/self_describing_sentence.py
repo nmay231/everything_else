@@ -57,12 +57,6 @@ def calculate_ceilings() -> Counter[str]:
 
 
 ceilings = calculate_ceilings()
-# print(max(ceilings.values()))
-# print(ceilings)
-# seconds_in_year = 365 * 24 * 60 * 60
-# print(100**26 / seconds_in_year)
-# print(math.prod(ceilings.values()) / seconds_in_year)
-# exit()
 
 solver = z3.Solver()
 for being_counted, final_letter_count in z_letter_counts.items():
@@ -102,14 +96,6 @@ solver.add(
     min_total_char_count <= total_char_count,
     total_char_count <= max_total_char_count,
 )
-
-# print(
-#     min_total_char_count,
-#     max_total_char_count,
-#     sum(ceilings.values()),
-#     sum(required.values()),
-# )
-# exit()
 
 
 provided_solution = Counter({'e': 28, 's': 25, 't': 22, 'n': 18, 'o': 15, 'i': 13, 'w': 9, 'h': 8, 'f': 8, 'r': 7, 'g': 6, 'a': 5, 'v': 4, 'y': 4, 'u': 4, 'l': 3, 'p': 2, 'm': 2, 'd': 2, 'x': 2, 'b': 1, 'c': 1, 'j': 1, 'k': 1, 'q': 1, 'z': 1})  # fmt: skip
