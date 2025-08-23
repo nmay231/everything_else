@@ -1,22 +1,18 @@
-[tool.poetry]
-name = "z3-testing"
+[project]
+name = "z3-shenanigans"
 version = "0.1.0"
-description = ""
-authors = ["Noah May <noahmouse2011@gmail.com>"]
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.3.2",
+    "z3-solver>=4.15.3.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-z3-solver = "^4.8.17"
-ipython = "^8.4.0"
-pyreadline = "^2.1"
-ipykernel = "^6.16.0"
-numpy = "^1.23.5"
-
-[tool.poetry.dev-dependencies]
-
-[tool.poetry.group.dev.dependencies]
-black = "^22.8.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "basedmypy>=2.10.0",
+    "black>=25.1.0",
+    "ipython>=9.4.0",
+    "ruff>=0.12.10",
+]
