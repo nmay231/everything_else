@@ -1004,6 +1004,7 @@ dependencies = [
 name = "rust-misc"
 version = "0.1.0"
 dependencies = [
+ "crc32fast",
  "itertools 0.12.1",
  "rand",
  "rug",
