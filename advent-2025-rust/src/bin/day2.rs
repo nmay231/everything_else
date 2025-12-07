@@ -1,27 +1,34 @@
-fn count_patterns_within_range(start: &str, end: &str) -> usize {
+use std::collections::HashSet;
+
+fn count_patterns_within_range(start: &str, end: &str, parts: usize) -> HashSet<usize> {
     let min_possible = start.parse::<usize>().unwrap();
     let max_possible = end.parse::<usize>().unwrap();
 
-    let mut pow10 = (10_usize).pow(start.len().div_ceil(2) as u32);
+    let mut pow10 = (10_usize).pow(start.len().div_ceil(parts) as u32);
 
-    let mut min_pattern = if start.len() % 2 == 1 {
+    let mut min_pattern = if start.len() % parts != 0 {
         pow10 / 10
     } else {
-        let mid = start.len() / 2;
+        let mid = start.len() / parts;
         start[..mid].parse::<usize>().unwrap()
     };
 
-    let mut goal = 0;
+    let mut patterns = HashSet::new();
 
     loop {
-        let to_check = min_pattern + pow10 * min_pattern;
+        let mut to_check = 0;
+        for i in 0..parts {
+            to_check += min_pattern * (pow10.pow(i as u32));
+        }
+        let to_check = to_check;
+
         if to_check < min_possible {
             min_pattern += 1;
             continue;
         } else if to_check > max_possible {
-            return goal;
+            return patterns;
         }
-        goal += to_check;
+        patterns.insert(to_check);
         min_pattern += 1;
 
         if min_pattern >= pow10 {
@@ -35,14 +42,25 @@ fn part1(text: &str) -> usize {
 
     for range in text.trim().split(',') {
         let (start, end) = range.split_once('-').expect("Invalid range format");
-        goal += count_patterns_within_range(start, end);
+        goal += count_patterns_within_range(start, end, 2)
+            .iter()
+            .sum::<usize>();
     }
 
     goal
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut patterns = HashSet::new();
+
+    for range in text.trim().split(',') {
+        let (start, end) = range.split_once('-').expect("Invalid range format");
+        for parts in 2..=end.len() {
+            patterns.extend(count_patterns_within_range(start, end, parts).into_iter());
+        }
+    }
+
+    patterns.iter().sum::<usize>()
 }
 
 fn main() -> std::io::Result<()> {
@@ -67,9 +85,8 @@ mod tests {
         assert_eq!(crate::part1(TEXT1), 1227775554);
     }
 
-    //     #[rstest::rstest]
-    //     #[case(TEXT1, 0)]
-    //     fn part1_given_examples(#[case] text: &str, #[case] expected: usize) {
-    //         assert_eq!(crate::part1(text), expected);
-    //     }
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 4174379265);
+    }
 }
