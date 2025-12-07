@@ -1,3 +1,7 @@
+/// The point of this solver is not to find the solution, but to help me solve
+/// it by checking the difficulty by using human solving techniques (rather than
+/// brute force enumeration) and ranking it by how sparse the results are per
+/// iteration step. At least, that's the purpose I have at the moment.
 use std::collections::HashSet;
 
 use itertools::Itertools;
@@ -80,6 +84,10 @@ impl Nonograms {
         let settled = self.fill_simple_overlap();
         println!("There were {} cells settled by simple overlap", settled);
         assert!(settled == 0 || (self.unchecked.len() > 0 && self.unchecked.len() <= settled));
+
+        let settled = self.apply_identities();
+        println!("New settled{}", settled);
+
         self.debug_print();
     }
 
@@ -178,9 +186,38 @@ impl Nonograms {
                 RowOrCol::Col(col) => Box::new(move |i: usize, cell: GridCell| grid[i][col] = cell),
             };
 
+            let Some((first_unknown_cell, _)) = line
+                .iter()
+                .find_position(|cell| cell == &&GridCell::Unknown)
+            else {
+                continue;
+            };
+
             let mut start = 0;
             for (clue_index, clue) in clues.iter().enumerate() {
                 let clue = *clue as usize;
+
+                let mut shaded_length = 0;
+                for known_index in 0..first_unknown_cell {
+                    start = known_index;
+                    match (shaded_length, line[known_index]) {
+                        (_, GridCell::Unknown) => {
+                            unreachable!("We should know the index of the first unknown cell")
+                        }
+                        (_, GridCell::Shaded) => shaded_length += 1,
+                        (0, GridCell::Unshaded) => {}
+                        (1.., GridCell::Unshaded) => break,
+                    }
+                }
+
+                let empty = GridCell::Unshaded;
+                if shaded_length > 0 {
+                    if Self::is_new_settled(&line[start], &empty) {
+                        identities[start] = cell_known_empty;
+                        set_index(start, empty);
+                    }
+                }
+
                 while start < line.len() && line[start] == GridCell::Unshaded {
                     identities[start] = cell_known_empty;
                     start += 1;
