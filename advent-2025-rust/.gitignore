@@ -1,2 +1,4 @@
 cookie.txt
 
+assets/
+!assets/.gitkeep
