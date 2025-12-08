@@ -53,6 +53,7 @@ name = "advent-2025-rust"
 version = "0.1.0"
 dependencies = [
  "indoc",
+ "num-traits",
  "rstest 0.26.1",
 ]
 

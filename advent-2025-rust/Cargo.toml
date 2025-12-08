@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 indoc = "2.0.7"
+num-traits = "0.2.19"
 
 [dev-dependencies]
 rstest = "0.26.1"
