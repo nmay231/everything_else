@@ -1,23 +1,42 @@
+fn max_joltage(bank: &str, to_turn_on: usize) -> usize {
+    if to_turn_on == 0 {
+        return 0;
+    }
+    let (index, first_char) = bank[0..bank.len() + 1 - to_turn_on]
+        .chars()
+        .enumerate()
+        .max_by_key(|(index, ch)| (*ch, bank.len() - index))
+        .expect("there to be at least two batteries per bank");
+    if to_turn_on < 2 {
+        return first_char.to_digit(10).unwrap() as usize;
+    }
+    let max = format!(
+        "{}{}",
+        first_char,
+        max_joltage(&bank[index + 1..], to_turn_on - 1)
+    );
+
+    return max.parse::<usize>().unwrap();
+}
+
 fn part1(text: &str) -> usize {
     let mut goal = 0;
 
     for line in text.lines() {
-        let (index, first_char) = line[..line.len() - 1]
-            .chars()
-            .enumerate()
-            .max_by_key(|(index, ch)| (*ch, line.len() - index))
-            .expect("there to be at least two batteries per bank");
-        let second_char = line[index + 1..].chars().max().unwrap();
-
-        let s = first_char.to_digit(10).unwrap() * 10 + second_char.to_digit(10).unwrap();
-        goal += s as usize;
+        goal += max_joltage(line, 2);
     }
 
     goal
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut goal = 0;
+
+    for line in text.lines() {
+        goal += max_joltage(line, 12);
+    }
+
+    goal
 }
 
 fn main() -> std::io::Result<()> {
@@ -45,9 +64,8 @@ mod tests {
         assert_eq!(crate::part1(TEXT1), 357);
     }
 
-    // #[rstest::rstest]
-    // #[case(TEXT1, 0)]
-    // fn part1_given_examples(#[case] text: &str, #[case] expected: usize) {
-    //     assert_eq!(crate::part1(text), expected);
-    // }
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 3121910778619);
+    }
 }
