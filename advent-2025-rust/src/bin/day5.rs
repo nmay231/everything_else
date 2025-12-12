@@ -54,8 +54,38 @@ fn part1(text: &str) -> usize {
     return total;
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut ranges = vec![];
+
+    for line in text.lines() {
+        if line == "" {
+            break;
+        } else {
+            let (start, end) = line.split_once('-').unwrap();
+            let start = start.parse::<usize>().unwrap();
+            let end = end.parse::<usize>().unwrap();
+            ranges.push(start..=end);
+        }
+    }
+
+    ranges.sort_by_key(|range| *range.start());
+
+    // NOTE: So merging it WAS the right step. I knew it...
+    let mut next = 1;
+    while next < ranges.len() {
+        let prev = next - 1;
+        if ranges[prev].end() >= &ranges[next].start().saturating_sub(1) {
+            let start = *ranges[prev].start();
+            let end = *ranges[prev].end().max(ranges[next].end());
+            ranges.splice(prev..=next, [start..=end].into_iter());
+        } else {
+            next += 1;
+        }
+    }
+
+    return ranges
+        .into_iter()
+        .fold(0, |total, range| total + range.count());
 }
 
 fn main() -> std::io::Result<()> {
@@ -88,6 +118,11 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1), 3);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 14);
     }
 
     // #[rstest::rstest]
