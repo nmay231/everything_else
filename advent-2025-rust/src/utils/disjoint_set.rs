@@ -69,6 +69,26 @@ impl<EveT: Eve> DisjointSet<EveT> {
         }
     }
 
+    pub fn eves(&self) -> Vec<&EveT> {
+        self.nodes
+            .iter()
+            .filter_map(|node| match node {
+                EveOrNode::Eve(eve) => Some(eve),
+                EveOrNode::Node(_) => None,
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn into_eves(self) -> Vec<EveT> {
+        self.nodes
+            .into_iter()
+            .filter_map(|node| match node {
+                EveOrNode::Eve(eve) => Some(eve),
+                EveOrNode::Node(_) => None,
+            })
+            .collect::<Vec<_>>()
+    }
+
     /// Number of nodes
     #[inline(always)]
     pub fn size(&self) -> usize {
