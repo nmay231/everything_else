@@ -39,8 +39,63 @@ fn part1(text: &str) -> usize {
     return grand_total;
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut lines = text.lines().collect::<Vec<_>>();
+
+    for window in lines.windows(2) {
+        assert_eq!(window[0].len(), window[1].len());
+    }
+
+    let mut operators = lines
+        .pop()
+        .unwrap()
+        .chars()
+        .filter(|c| c != &' ')
+        .collect::<Vec<_>>();
+
+    let mut columns = (0..lines[0].len())
+        .map(|index| {
+            lines
+                .iter()
+                .map(|line| line.chars().nth(index).unwrap())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut grand_total = 0;
+    while let Some(op) = operators.pop() {
+        let addition = op == '+';
+
+        let mut subtotal = if addition { 0 } else { 1 };
+
+        loop {
+            match columns.pop() {
+                None => {
+                    assert_eq!(operators.len(), 0);
+                    break;
+                }
+                Some(column) => {
+                    let column = column.trim();
+                    if column == "" {
+                        break;
+                    }
+
+                    let num = column.parse::<usize>().unwrap();
+                    if addition {
+                        subtotal += num;
+                    } else {
+                        subtotal *= num;
+                    }
+                }
+            }
+        }
+
+        grand_total += subtotal;
+    }
+
+    assert_eq!(columns.len(), 0);
+
+    grand_total
 }
 
 fn main() -> std::io::Result<()> {
@@ -58,14 +113,19 @@ mod tests {
 
     const TEXT1: &str = indoc! {"
         123 328  51 64 
-        45 64  387 23 
-        6 98  215 314
+         45 64  387 23 
+          6 98  215 314
         *   +   *   +  
     "};
 
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1), 4277556);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 3263827);
     }
 
     // #[rstest::rstest]
