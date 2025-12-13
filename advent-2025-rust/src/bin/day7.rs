@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 fn part1(text: &str) -> usize {
     let mut lines = text.lines();
@@ -36,8 +36,37 @@ fn part1(text: &str) -> usize {
     return count;
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut lines = text.lines();
+    let mut universe_counts = HashMap::new();
+    universe_counts.insert(
+        lines
+            .next()
+            .unwrap()
+            .chars()
+            .enumerate()
+            .find_map(|(index, c)| if c != 'S' { None } else { Some(index) })
+            .unwrap(),
+        1,
+    );
+
+    for line in lines {
+        for (index, char) in line.chars().enumerate() {
+            match (universe_counts.get(&index), char) {
+                (None, _) | (Some(_), '.') => continue,
+                (Some(n_universes), '^') => {
+                    let n_universes = *n_universes;
+
+                    universe_counts.remove(&index);
+                    *universe_counts.entry(index - 1).or_default() += n_universes;
+                    *universe_counts.entry(index + 1).or_default() += n_universes;
+                }
+                (Some(_), _) => unreachable!(),
+            }
+        }
+    }
+
+    return universe_counts.into_values().sum::<usize>();
 }
 
 fn main() -> std::io::Result<()> {
@@ -75,5 +104,10 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1), 21);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 40);
     }
 }
