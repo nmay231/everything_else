@@ -49,8 +49,40 @@ fn part1(text: &str, n_closest: usize) -> usize {
         .fold(1, |prod, n| prod * n);
 }
 
-fn part2(_text: &str) -> usize {
-    0
+fn part2(text: &str) -> usize {
+    let mut coords = vec![];
+
+    for line in text.lines() {
+        let (x, tmp) = line.split_once(',').unwrap();
+        let (y, z) = tmp.split_once(',').unwrap();
+        let [x, y, z] = [x, y, z].map(|s| s.parse::<usize>().unwrap());
+        coords.push((x, y, z))
+    }
+
+    let mut distances = vec![];
+
+    for (index_a, a) in coords.iter().enumerate() {
+        for (index_b, b) in coords.iter().enumerate().skip(index_a + 1) {
+            distances.push((euclid_squared(a, b), (index_a, index_b)));
+        }
+    }
+
+    distances.sort();
+    assert_eq!(distances.len(), coords.len() * (coords.len() - 1) / 2);
+
+    let mut circuits = DisjointSetWithCount::new(coords.len());
+    let mut index_a = 0;
+    let mut index_b = 0;
+
+    for (_, indexes) in distances.into_iter() {
+        (index_a, index_b) = indexes;
+        circuits.link(index_a, index_b);
+        if circuits.size_of_eve(index_a) == coords.len() {
+            break;
+        }
+    }
+
+    return coords[index_a].0 * coords[index_b].0;
 }
 
 fn main() -> std::io::Result<()> {
@@ -92,5 +124,10 @@ mod tests {
     #[test]
     fn part1_given_example() {
         assert_eq!(crate::part1(TEXT1, 10), 40);
+    }
+
+    #[test]
+    fn part2_given_example() {
+        assert_eq!(crate::part2(TEXT1), 25272);
     }
 }

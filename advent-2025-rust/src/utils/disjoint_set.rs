@@ -18,7 +18,7 @@ pub trait Eve {
     fn merge(&self, other: &Self) -> Self;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Count(usize);
 
 impl Deref for Count {
