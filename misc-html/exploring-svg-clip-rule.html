@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+        <style>
+            .canvas {
+                width: 100vw;
+                height: 100vh;
+            }
+            svg {
+                width: 50%;
+                margin: auto;
+                aspect-ratio: 1;
+                overflow: visible;
+            }
+            * {
+                padding: 0;
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="canvas">
+            <svg viewBox="-21 -21 41 41">
+                <clipPath id="my-clip-path">
+                    <!-- I guess it's not too surprising now that I think about
+                    it, but clip-rule="evenodd" only works when the (sub?) paths
+                    are part of the same element, otherwise, it's the union of
+                    the two paths like normal -->
+                    <path
+                        d="M0,20 L20,0 L0,-20 L-20,0 Z M0,15 L15,0 L0,-15 L-15,0 Z"
+                        stroke="black"
+                        clip-rule="evenodd" />
+
+                    <!-- <path
+                        d="M0,20 L20,0 L0,-20 L-20,0 Z"
+                        stroke="black"
+                        clip-rule="evenodd" />
+                    <path
+                        d="M0,15 L15,0 L0,-15 L-15,0 Z"
+                        stroke="black"
+                        clip-rule="evenodd" /> -->
+                </clipPath>
+                <rect
+                    x="-15"
+                    y="-15"
+                    width="30"
+                    height="30"
+                    stroke="black"
+                    stroke-width="1"
+                    clip-path="url(#my-clip-path)" />
+            </svg>
+        </div>
+    </body>
+</html>
