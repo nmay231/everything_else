@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
@@ -29,10 +29,29 @@
                     it, but clip-rule="evenodd" only works when the (sub?) paths
                     are part of the same element, otherwise, it's the union of
                     the two paths like normal -->
-                    <path
+                    <!-- <path
                         d="M0,20 L20,0 L0,-20 L-20,0 Z M0,15 L15,0 L0,-15 L-15,0 Z"
                         stroke="black"
-                        clip-rule="evenodd" />
+                        clip-rule="evenodd" /> -->
+
+                    <!-- Just a random circle to know things are working -->
+                    <circle cx="0" cy="0" r="5" />
+
+                    <!-- Since using a M/m command seems to start a new subpath,
+                    I guess you can't reuse the same path definition for both
+                    the stroke drawing and the clipping. It makes sense, but
+                    just means I have to put more work into it. And yes, I tried
+                    the following path definition with a Z at the end and before
+                    the second M, just in case.
+                    -->
+                    <path
+                        d="M5,5 L5,10 M10,10 L10,5"
+                        stroke-width="1"
+                        stroke="black" />
+                    <!-- <path
+                        d="M5,5 L5,10 L10,10 L10,5 Z"
+                        stroke-width="1"
+                        stroke="black" /> -->
 
                     <!-- <path
                         d="M0,20 L20,0 L0,-20 L-20,0 Z"
@@ -51,6 +70,11 @@
                     stroke="black"
                     stroke-width="1"
                     clip-path="url(#my-clip-path)" />
+
+                <!-- <path
+                    d="M5,5 L5,10 M10,10 L10,5"
+                    stroke-width="1"
+                    stroke="black" /> -->
             </svg>
         </div>
     </body>
