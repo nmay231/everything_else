@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Sub};
 
 use num_traits::{Num, NumRef};
@@ -155,6 +156,23 @@ impl<T: MyNumber> Point<T> {
         Point {
             x: mapper(&self.x),
             y: mapper(&self.y),
+        }
+    }
+
+    /// Returns the general direction of other with respect to self, e.g. other
+    /// is west and south of self. Always given as (horizontal, vertical)
+    /// comparisons. None is given if other is in line with self on that axis.
+    pub fn cmp_direc_pair(&self, other: &Self) -> (Option<Direc>, Option<Direc>) {
+        match (self.x.cmp(&other.x), self.y.cmp(&other.y)) {
+            (Ordering::Less, Ordering::Less) => (Some(Direc::West), Some(Direc::North)),
+            (Ordering::Less, Ordering::Equal) => (Some(Direc::West), None),
+            (Ordering::Less, Ordering::Greater) => (Some(Direc::West), Some(Direc::South)),
+            (Ordering::Equal, Ordering::Less) => (None, Some(Direc::North)),
+            (Ordering::Equal, Ordering::Equal) => (None, None),
+            (Ordering::Equal, Ordering::Greater) => (None, Some(Direc::South)),
+            (Ordering::Greater, Ordering::Less) => (Some(Direc::East), Some(Direc::North)),
+            (Ordering::Greater, Ordering::Equal) => (Some(Direc::East), None),
+            (Ordering::Greater, Ordering::Greater) => (Some(Direc::East), Some(Direc::South)),
         }
     }
 }
